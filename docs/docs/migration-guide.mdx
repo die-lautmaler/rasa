@@ -24,6 +24,129 @@ If you still have training data in Markdown format then the recommended approach
 to convert your data from Markdown to YAML. Please use the commands described
 [here](./migration-guide.mdx#training-data-files).
 
+### Custom Policies and Custom Components
+
+Rasa Open Source 3.0 changed the way how NLU component and dialogue
+policies are trained and run during inference. As part of these changes the interfaces
+for NLU components and policies were unified and adapted.
+
+The next section outlines which adaptions are required to run your custom NLU components
+and policies with 3.0.
+
+#### The `GraphComponent` interface
+Any custom NLU components or policies have to inherit the `GraphComponent` interface:
+
+```python (docs/sources/rasa/engine/graph.py)
+```
+
+:::tip
+
+It is recommended to use the predefined `rasa.core.policies.policy.Policy` class for
+dialogue policies as this provides out-of-the-box behavior for dialogue policies.
+:::
+
+- `create` (required): This method is used to instantiate your component during training.
+    - `config`: This is your model's default configuration merged with the
+       configuration provided to the component in the model configuration file.
+    - `model_storage`: You can use this to persist and load your components. See the
+       [persistence](migration-guide#model-persistence) section for further details on its usage.
+    - `resource`: This uniquely identifies your component within the `model_storage`.
+       See the [persistence](migration-guide#model-persistence) section for further
+       details on its usage.
+    - `execution_context`: This provides additional information about the current
+       mode of execution.
+       - `model_id`: A unique identifier for the model used during inference. This
+          parameter is `None` during training.
+       - `should_add_diagnostic_data`: If `True` then additional diagnostic metadata
+          can be added to your component's predictions.
+       - `is_finetuning`: If `True` then it's not a regular training run. Instead, your
+          component is [finetuned](command-line-interface#incremental-training) from
+          a previously trained model.
+       - `graph_schema`: TBD (I'd )
+       - `node_name`: TBD
+
+
+- `load` (optional): This method is used to instantiate your component during inference.
+   The default implementation calls your `create` method. It is recommended to override
+   this when your component
+   [persists data as part of the training](migration-guide#model-persistence).
+   See `create` for a description of the single parameters.
+
+- `get_default_config` (optional): This should return the default configuration for
+   your component. The default implementation returns an empty dictionary which means
+   that there is no default configuration fot the component.
+   Rasa Open Source will update the configuration given in the configuration file with
+   the default configuration during runtime.
+
+- `supported_languages` (optional): Use this method to specify which languages your
+   component supports. Rasa Open Source will use the `language` key in the model
+   configuration file to validate that your component is valid for usage with the
+   specified language. If your component returns `None` (this is the default
+   implementation), you indicate that it supports all languages.
+
+   Examples:
+   - `[]`: The component doesn't support any language
+   - `None`: All languages are supported expect the languages defined in
+     `not_supported_languages`
+   - `[en]`: The component can only be used for English conversations.
+
+- `not_supported_languages` (optional): Use this method to specify which languages your
+   component does not support. Rasa Open Source will use the `language` key in the
+   model configuration file to validate that your component is valid for usage with
+   the specified language. If your component returns `None` (this is the default
+   implementation), you indicate that it supports all languages.
+
+   Examples:
+   - `None` or `[]`: All languages specified in `supported_languages` are supported.
+   - `[en]`: The component can be used for any language except English.
+
+- `required_packages` (optional): Use this to indicate which Python packages need to
+   be installed to be able to use this component. Rasa Open Source will raise an error
+   during execution if your component is used without the required libraries being
+   installed. By default this method returns an empty list which means that your
+   component does not have any extra dependencies.
+
+   Examples:
+   - `[]`: No extra packages are required to use this component
+   - `["spacy"]`: The Python package `spacy` needs to be installed to be able to run
+      this component.
+
+#### Model Persistence
+Some components require to persist data as part of the training which should be
+available to the component during inference. For this purpose Rasa Open Source provides
+`model_storage` and `resource` parameters to your components `create` and `load`
+method. The `model_storage` provides access to data from all components. The `resource`
+allows you to uniquely identify your component's location in the model storage.
+
+As you can see in the snippet below `self._model_storage.write_to(self._resource)`
+provides a path to a directory where you can persist any data required by your
+component. Note that it is required to return your components `resource` at the end
+of your component's training method so that Rasa Open Source can cache the training
+results between trainings.
+
+When Rasa Open Source calls `load` to instantiate your component for
+inference you can use the counterpart `self._model_storage.read_from(resource)` to
+get access to the same directory. Using the provided path you can then load the
+persisted data and initialize your component with it.
+
+```python (docs/sources/data/test_classes/component_with_persistence.py)
+```
+
+#### Registering Components
+
+#### Changes to Custom Policies
+
+#### Changes to Custom NLU Components
+
+TBD
+
+
+
+TBD:
+- registering
+- constructor differences
+- persistence
+- train / predict split
 ### Training data
 
 `TrainingDataImporter` and all its implementations are updated to contain only synchronous methods.
