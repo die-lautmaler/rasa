@@ -21,9 +21,14 @@ keywords = [ "nlp", "machine-learning", "machine-learning-library", "bot", "bots
 include = [ "LICENSE.txt", "README.md", "rasa/shared/core/training_data/visualization.html", "rasa/cli/default_config.yml", "rasa/shared/importers/*", "rasa/utils/schemas/*", "rasa/keys",]
 readme = "README.md"
 license = "Apache-2.0"
+
 [[tool.poetry.source]]
 name = "internal repository mirroring psycopg binary for macos"
 url = "https://europe-west3-python.pkg.dev/rasa-releases/psycopg-binary/simple/"
+
+[[tool.poetry.source]]
+name = "pypi"
+priority = "primary"
 
 [tool.towncrier]
 package = "rasa"
@@ -87,7 +92,7 @@ line-length = 88
 select = [ "D", "E", "F", "W", "RUF",]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.9,<3.11"
 boto3 = "^1.26.136"
 requests = "^2.23"
 matplotlib = ">=3.1,<3.8"
@@ -131,7 +136,7 @@ sklearn-crfsuite = "~0.3"
 psycopg2-binary = ">=2.8.2,<2.10.0"
 python-dateutil = "~2.8"
 protobuf = ">=4.23.3,< 4.23.4"
-tensorflow_hub = "^0.13.0"
+tensorflow_hub = "^0.16.0"
 setuptools = ">=65.5.1"
 ujson = ">=1.35,<6.0"
 regex = ">=2020.6,<2022.11"
@@ -158,16 +163,16 @@ wheel = ">=0.38.1"
 certifi = ">=2023.7.22"
 cryptography = ">=41.0.2"
 [[tool.poetry.dependencies.tensorflow-io-gcs-filesystem]]
-version = "==0.31"
+version = "==0.34"
 markers = "sys_platform == 'win32'"
 
 [[tool.poetry.dependencies.tensorflow-io-gcs-filesystem]]
-version = "==0.32"
+version = "==0.34"
 markers = "sys_platform == 'linux'"
 
 [[tool.poetry.dependencies.tensorflow-io-gcs-filesystem]]
-version = "==0.32"
-markers = "sys_platform == 'darwin' and platform_machine != 'arm64'"
+version = "==0.34"
+markers = "(sys_platform == 'darwin') and (platform_machine != 'arm64')"
 
 [[tool.poetry.dependencies.dask]]
 version = "2022.2.0"
@@ -186,7 +191,7 @@ version = ">=1.19.2,<1.25.0"
 python = ">=3.8,<3.11"
 
 [[tool.poetry.dependencies.numpy]]
-version = "1.22.3"
+version = ">=1.23.5,<2.0.0"
 markers = "sys_platform =='Windows' and platform_python_implementation != 'PyPy'"
 python = "3.10"
 
@@ -249,20 +254,16 @@ timeout_func_only = true
 asyncio_mode = "auto"
 
 [tool.poetry.dependencies.tensorflow]
-version = "2.12.0"
-markers = "sys_platform != 'darwin' or platform_machine != 'arm64'"
+version = "2.16.2"
+# markers = "sys_platform != 'darwin' or platform_machine != 'arm64'"
 
 [tool.poetry.dependencies.tensorflow-intel]
-version = "2.12.0"
+version = "2.16.2"
 markers = "sys_platform == 'win32'"
 
-[tool.poetry.dependencies.tensorflow-cpu-aws]
-version = "2.12.0"
-markers = "sys_platform == 'linux' and (platform_machine == 'arm64' or platform_machine == 'aarch64')"
-
-[tool.poetry.dependencies.tensorflow-macos]
-version = "2.12.0"
-markers = "sys_platform == 'darwin' and platform_machine == 'arm64'"
+# [tool.poetry.dependencies.tensorflow-cpu-aws]
+# version = "2.15.1"
+# markers = "sys_platform == 'linux' and (platform_machine == 'arm64' or platform_machine == 'aarch64')"
 
 [tool.poetry.dependencies.PyJWT]
 version = "^2.8.0"
@@ -273,12 +274,12 @@ version = "^0.4.4"
 markers = "sys_platform == 'win32'"
 
 [tool.poetry.dependencies.tensorflow-metal]
-version = "0.8.0"
+version = "1.1.0"
 markers = "sys_platform == 'darwin' and platform_machine == 'arm64'"
 optional = true
 
 [tool.poetry.dependencies.tensorflow-text]
-version = "2.12.0"
+version = "2.16.1"
 markers = "sys_platform != 'win32' and platform_machine != 'arm64' and platform_machine != 'aarch64'"
 
 [tool.poetry.dependencies."github3.py"]
