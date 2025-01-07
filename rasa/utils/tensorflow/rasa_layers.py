@@ -1,4 +1,5 @@
 import tensorflow as tf
+import keras
 import numpy as np
 from typing import Text, List, Dict, Any, Union, Optional, Tuple, Callable
 
@@ -207,6 +208,7 @@ class ConcatenateSparseDenseFeatures(RasaCustomLayer):
     SPARSE_DROPOUT = "sparse_dropout"
     SPARSE_TO_DENSE = "sparse_to_dense"
     DENSE_DROPOUT = "dense_dropout"
+    feature_type_signature: List[FeatureSignature]
 
     def __init__(
         self,
@@ -220,6 +222,7 @@ class ConcatenateSparseDenseFeatures(RasaCustomLayer):
             raise TFLayerConfigException(
                 "The feature type signature must contain some feature signatures."
             )
+        self.feature_type_signature = feature_type_signature
 
         super().__init__(
             name=f"concatenate_sparse_dense_features_{attribute}_{feature_type}"
@@ -232,7 +235,7 @@ class ConcatenateSparseDenseFeatures(RasaCustomLayer):
         )
 
         # Prepare dropout and sparse-to-dense layers if any sparse tensors are expected
-        self._tf_layers: Dict[Text, tf.keras.layers.Layer] = {}
+        self._tf_layers: Dict[Text, keras.layers.Layer] = {}
         if any([signature.is_sparse for signature in feature_type_signature]):
             self._prepare_layers_for_sparse_tensors(attribute, feature_type, config)
 
@@ -288,9 +291,11 @@ class ConcatenateSparseDenseFeatures(RasaCustomLayer):
         """
         return sum(
             [
-                config[DENSE_DIMENSION][attribute]
-                if signature.is_sparse
-                else signature.units
+                (
+                    config[DENSE_DIMENSION][attribute]
+                    if signature.is_sparse
+                    else signature.units
+                )
                 for signature in feature_type_signature
             ]
         )
@@ -300,14 +305,20 @@ class ConcatenateSparseDenseFeatures(RasaCustomLayer):
     ) -> tf.Tensor:
         """Turns sparse tensor into dense, possibly adds dropout before and/or after."""
         if self.SPARSE_DROPOUT in self._tf_layers:
-            feature = self._tf_layers[self.SPARSE_DROPOUT](feature, training)
+            feature = self._tf_layers[self.SPARSE_DROPOUT](feature, training=training)
 
         feature = self._tf_layers[self.SPARSE_TO_DENSE](feature)
 
         if self.DENSE_DROPOUT in self._tf_layers:
-            feature = self._tf_layers[self.DENSE_DROPOUT](feature, training)
+            feature = self._tf_layers[self.DENSE_DROPOUT](feature, training=training)
 
         return feature
+
+    def build(
+        self, input_shape: Tuple[List[Union[tf.Tensor, tf.SparseTensor]]]
+    ) -> None:
+        """Creates the layer's variables."""
+        pass
 
     def call(
         self,
@@ -444,13 +455,13 @@ class RasaFeatureCombiningLayer(RasaCustomLayer):
         for feature_type, present in self._feature_types_present.items():
             if not present:
                 continue
-            self._tf_layers[
-                f"sparse_dense.{feature_type}"
-            ] = ConcatenateSparseDenseFeatures(
-                attribute=attribute,
-                feature_type=feature_type,
-                feature_type_signature=attribute_signature[feature_type],
-                config=config,
+            self._tf_layers[f"sparse_dense.{feature_type}"] = (
+                ConcatenateSparseDenseFeatures(
+                    attribute=attribute,
+                    feature_type=feature_type,
+                    feature_type_signature=attribute_signature[feature_type],
+                    config=config,
+                )
             )
 
     def _prepare_sequence_sentence_concat(
@@ -790,6 +801,9 @@ class RasaSequenceLayer(RasaCustomLayer):
             attribute, transformer_layers, transformer_units, config
         )
 
+    def build(self, input_shape):
+        pass
+
     @staticmethod
     def _get_transformer_dimensions(
         attribute: Text, config: Dict[Text, Any]
@@ -853,13 +867,13 @@ class RasaSequenceLayer(RasaCustomLayer):
                 [not signature.is_sparse for signature in attribute_signature[SEQUENCE]]
             )
             if not expect_dense_seq_features:
-                self._tf_layers[
-                    self.SPARSE_TO_DENSE_FOR_TOKEN_IDS
-                ] = layers.DenseForSparse(
-                    units=2,
-                    use_bias=False,
-                    trainable=False,
-                    name=f"{self.SPARSE_TO_DENSE_FOR_TOKEN_IDS}.{attribute}",
+                self._tf_layers[self.SPARSE_TO_DENSE_FOR_TOKEN_IDS] = (
+                    layers.DenseForSparse(
+                        units=2,
+                        use_bias=False,
+                        trainable=False,
+                        name=f"{self.SPARSE_TO_DENSE_FOR_TOKEN_IDS}.{attribute}",
+                    )
                 )
 
     def _calculate_output_units(
@@ -943,7 +957,7 @@ class RasaSequenceLayer(RasaCustomLayer):
         # Note that only sequence-level features are masked, nothing happens to the
         # sentence-level features in the combined features tensor.
         seq_sent_features, mlm_boolean_mask = self._tf_layers[self.MLM_INPUT_MASK](
-            seq_sent_features, mask_sequence, training
+            seq_sent_features, mask_sequence, training=training
         )
 
         return seq_sent_features, token_ids, mlm_boolean_mask
@@ -1001,7 +1015,9 @@ class RasaSequenceLayer(RasaCustomLayer):
         ]((sequence_features, sentence_features, sequence_feature_lengths))
 
         # Apply one or more dense layers.
-        seq_sent_features = self._tf_layers[self.FFNN](seq_sent_features, training)
+        seq_sent_features = self._tf_layers[self.FFNN](
+            seq_sent_features, training=training
+        )
 
         # If using masked language modeling, mask the transformer inputs and get labels
         # for the masked tokens and a boolean mask. Note that TED does not use MLM loss,
@@ -1030,7 +1046,7 @@ class RasaSequenceLayer(RasaCustomLayer):
         if self._has_transformer:
             mask_padding = 1 - mask_combined_sequence_sentence
             outputs, attention_weights = self._tf_layers[self.TRANSFORMER](
-                seq_sent_features_masked, mask_padding, training
+                seq_sent_features_masked, mask_padding, training=training
             )
             outputs = tf.nn.gelu(outputs)
         else:

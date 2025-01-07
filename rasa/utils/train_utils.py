@@ -37,7 +37,7 @@ from rasa.shared.exceptions import InvalidConfigException
 if TYPE_CHECKING:
     from rasa.nlu.extractors.extractor import EntityTagSpec
     from rasa.nlu.tokenizers.tokenizer import Token
-    from tensorflow.keras.callbacks import Callback
+    from keras._tf_keras.keras.callbacks import Callback
 
 
 def rank_and_mask(

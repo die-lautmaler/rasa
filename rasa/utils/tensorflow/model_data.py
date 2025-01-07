@@ -22,6 +22,10 @@ from sklearn.model_selection import train_test_split
 
 logger = logging.getLogger(__name__)
 
+# Type alias for data structure holding features
+# Data = DefaultDict[Text, DefaultDict[Text, List[Union[np.ndarray, scipy.sparse.spmatrix]]]]
+# Type alias for a batch of data
+# BatchData = Dict[Text, Dict[Text, List[Union[np.ndarray, scipy.sparse.spmatrix]]]]
 
 def ragged_array_to_ndarray(ragged_array: Iterable[np.ndarray]) -> np.ndarray:
     """Converts ragged array to numpy array.
@@ -249,7 +253,7 @@ class FeatureSignature(NamedTuple):
 #   "feature array containing dense features for every training example",
 #   "feature array containing sparse features for every training example"
 # ]}
-Data = Dict[Text, Dict[Text, List[FeatureArray]]]
+Data = DefaultDict[Text, Dict[Text, List[FeatureArray]]]
 
 
 class RasaModelData:
@@ -412,7 +416,7 @@ class RasaModelData:
         Returns:
             The number of examples in data.
         """
-        if not data:
+        if data is None:
             data = self.data
 
         if not data:
@@ -724,7 +728,9 @@ class RasaModelData:
         label_ids = self._create_label_ids(data[self.label_key][self.label_sub_key][0])
 
         unique_label_ids, counts_label_ids = np.unique(
-            label_ids, return_counts=True, axis=0
+            label_ids,
+            return_counts=True,
+            axis=0,
         )
         num_label_ids = len(unique_label_ids)
 
@@ -799,8 +805,7 @@ class RasaModelData:
             number_of_test_examples: number of test examples
             label_counts: number of labels
 
-        Raises:
-            A ValueError if the number of examples does not fit.
+        Raises: A ValueError if the number of examples does not fit.
         """
         if number_of_test_examples >= self.num_examples - len(label_counts):
             raise ValueError(

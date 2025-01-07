@@ -1,5 +1,6 @@
 import time
 import random
+import keras
 import tensorflow as tf
 import numpy as np
 import logging
@@ -7,7 +8,7 @@ import os
 from collections import defaultdict
 from typing import List, Text, Dict, Tuple, Union, Optional, Any, TYPE_CHECKING
 
-from keras.utils import tf_utils
+# from keras.utils import tf_utils
 from keras import Model
 
 from rasa.shared.constants import DIAGNOSTIC_DATA
@@ -81,10 +82,10 @@ class RasaModel(Model):
             random_seed: set the random seed to get reproducible results
         """
         # make sure that keras releases resources from previously trained model
-        tf.keras.backend.clear_session()
+        keras.backend.clear_session()
         super().__init__(**kwargs)
 
-        self.total_loss = tf.keras.metrics.Mean(name="t_loss")
+        self.total_loss = keras.metrics.Mean(name="t_loss")
         self.metrics_to_log = ["t_loss"]
 
         self._training = None  # training phase should be defined when building a graph
@@ -104,7 +105,7 @@ class RasaModel(Model):
         np.random.seed(self.random_seed)
         tf.random.set_seed(self.random_seed)
         tf.experimental.numpy.random.seed(self.random_seed)
-        tf.keras.utils.set_random_seed(self.random_seed)
+        keras.utils.set_random_seed(self.random_seed)
         # Set a fixed value for the hash seed
         os.environ["PYTHONHASHSEED"] = str(self.random_seed)
 
@@ -274,7 +275,9 @@ class RasaModel(Model):
         if self._run_eagerly:
             # Once we take advantage of TF's distributed training, this is where
             # scheduled functions will be forced to execute and return actual values.
-            outputs = tf_utils.sync_to_numpy_or_python_type(self.predict_step(batch_in))
+            outputs = keras.util.tf_utils.sync_to_numpy_or_python_type(
+                self.predict_step(batch_in)
+            )
             if DIAGNOSTIC_DATA in outputs:
                 outputs[DIAGNOSTIC_DATA] = self._empty_lists_to_none_in_dict(
                     outputs[DIAGNOSTIC_DATA]
@@ -288,7 +291,9 @@ class RasaModel(Model):
 
         # Once we take advantage of TF's distributed training, this is where
         # scheduled functions will be forced to execute and return actual values.
-        outputs = tf_utils.sync_to_numpy_or_python_type(self._tf_predict_step(batch_in))
+        outputs = keras.utils.tf_utils.sync_to_numpy_or_python_type(
+            self._tf_predict_step(batch_in)
+        )
         if DIAGNOSTIC_DATA in outputs:
             outputs[DIAGNOSTIC_DATA] = self._empty_lists_to_none_in_dict(
                 outputs[DIAGNOSTIC_DATA]
@@ -324,9 +329,9 @@ class RasaModel(Model):
                 # We only need input, since output is always None and not
                 # consumed by our TF graphs.
                 batch_in = next(data_iterator)[0]
-                batch_out: Dict[
-                    Text, Union[np.ndarray, Dict[Text, Any]]
-                ] = self._rasa_predict(batch_in)
+                batch_out: Dict[Text, Union[np.ndarray, Dict[Text, Any]]] = (
+                    self._rasa_predict(batch_in)
+                )
                 if output_keys_expected:
                     batch_out = {
                         key: output
@@ -402,7 +407,7 @@ class RasaModel(Model):
             overwrite: If 'True' an already existing model with the same file name will
                        be overwritten.
         """
-        self.save_weights(model_file_name, overwrite=overwrite, save_format="tf")
+        self.save_weights(model_file_name, overwrite=overwrite)
 
     @classmethod
     def load(
@@ -439,7 +444,7 @@ class RasaModel(Model):
 
         # need to train on 1 example to build weights of the correct size
         model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate), run_eagerly=run_eagerly
+            optimizer=keras.optimizers.Adam(learning_rate), run_eagerly=run_eagerly
         )
         data_generator = RasaBatchDataGenerator(model_data_example, batch_size=1)
         model.fit(data_generator, verbose=False)
@@ -582,7 +587,7 @@ class TransformerRasaModel(RasaModel):
         )
 
         # set up tf layers
-        self._tf_layers: Dict[Text, tf.keras.layers.Layer] = {}
+        self._tf_layers: Dict[Text, keras.layers.Layer] = {}
 
     def adjust_for_incremental_training(
         self,
@@ -725,7 +730,7 @@ class TransformerRasaModel(RasaModel):
             data_example: a data example that is stored with the ML component.
         """
         self.compile(
-            optimizer=tf.keras.optimizers.Adam(self.config[LEARNING_RATE]),
+            optimizer=keras.optimizers.Adam(self.config[LEARNING_RATE]),
             run_eagerly=self.config[RUN_EAGERLY],
         )
         label_key = LABEL_KEY if self.config[INTENT_CLASSIFICATION] else None
@@ -795,7 +800,7 @@ class TransformerRasaModel(RasaModel):
         )
 
     @property
-    def dot_product_loss_layer(self) -> tf.keras.layers.Layer:
+    def dot_product_loss_layer(self) -> keras.layers.Layer:
         """Returns the dot-product loss layer to use.
 
         Returns:

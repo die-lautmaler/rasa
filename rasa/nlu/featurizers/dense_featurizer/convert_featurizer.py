@@ -4,7 +4,6 @@ import os
 from typing import Any, Dict, List, Optional, Text, Tuple, Type
 
 import tensorflow as tf
-from tensorflow.python.eager.wrap_function import WrappedFunction
 from tqdm import tqdm
 import numpy as np
 
@@ -111,15 +110,11 @@ class ConveRTFeaturizer(DenseFeaturizer, GraphComponent):
 
         self.module = train_utils.load_tf_hub_model(self.model_url)
 
-        self.tokenize_signature: WrappedFunction = self._get_signature(
-            "tokenize", self.module
-        )
-        self.sequence_encoding_signature: WrappedFunction = self._get_signature(
+        self.tokenize_signature = self._get_signature("tokenize", self.module)
+        self.sequence_encoding_signature = self._get_signature(
             "encode_sequence", self.module
         )
-        self.sentence_encoding_signature: WrappedFunction = self._get_signature(
-            "default", self.module
-        )
+        self.sentence_encoding_signature = self._get_signature("default", self.module)
 
     @classmethod
     def validate_config(cls, config: Dict[Text, Any]) -> None:
@@ -221,8 +216,9 @@ class ConveRTFeaturizer(DenseFeaturizer, GraphComponent):
             cls._validate_model_files_exist(model_url)
 
     @staticmethod
-    def _get_signature(signature: Text, module: Any) -> WrappedFunction:
+    def _get_signature(signature: Text, module: Any):
         """Retrieve a signature from a (hopefully loaded) TF model."""
+
         if not module:
             raise Exception(
                 f"{ConveRTFeaturizer.__name__} needs "

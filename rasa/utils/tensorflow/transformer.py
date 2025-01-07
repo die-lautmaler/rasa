@@ -1,11 +1,9 @@
-from typing import Optional, Text, Tuple, Union
+from typing import Optional, Text, List, Any, Union, Tuple, Dict
 
 import numpy as np
 import tensorflow as tf
+import keras
 
-# TODO: The following is not (yet) available via tf.keras
-from keras.utils.control_flow_util import smart_cond
-from tensorflow.keras import backend as K
 
 import rasa.shared.utils.cli
 from rasa.utils.tensorflow.layers import RandomlyConnectedDense
@@ -13,7 +11,7 @@ from rasa.utils.tensorflow.layers import RandomlyConnectedDense
 
 # from https://www.tensorflow.org/tutorials/text/transformer
 # and https://github.com/tensorflow/tensor2tensor
-class MultiHeadAttention(tf.keras.layers.Layer):
+class MultiHeadAttention(keras.layers.Layer):
     """Multi-headed attention layer.
 
     Arguments:
@@ -256,7 +254,9 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
             return logits + drop_mask * -1e9
 
-        return smart_cond(training, droped_logits, lambda: tf.identity(logits))
+        return tf.python.keras.utils.control_flow_util.smart_cond(
+            training, droped_logits, lambda: tf.identity(logits)
+        )
 
     def _scaled_dot_product_attention(
         self,
@@ -356,7 +356,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
             Attention layer output with shape [batch_size, length, units]
         """
         if training is None:
-            training = K.learning_phase()
+            training = keras.backend.learning_phase()
 
         query = self._query_dense_layer(query_input)  # (batch_size, length, units)
         key = self._key_dense_layer(source_input)  # (batch_size, length, units)
@@ -378,7 +378,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         return output, attention_weights
 
 
-class TransformerEncoderLayer(tf.keras.layers.Layer):
+class TransformerEncoderLayer(keras.layers.Layer):
     """Transformer encoder layer.
 
     The layer is composed of the sublayers:
@@ -419,7 +419,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
     ) -> None:
         super().__init__()
 
-        self._layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+        self._layer_norm = keras.layers.LayerNormalization(epsilon=1e-6)
         self._mha = MultiHeadAttention(
             units,
             num_heads,
@@ -431,18 +431,18 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
             max_relative_position,
             heads_share_relative_embedding,
         )
-        self._dropout = tf.keras.layers.Dropout(dropout_rate)
+        self._dropout = keras.layers.Dropout(dropout_rate)
 
         self._ffn_layers = [
-            tf.keras.layers.LayerNormalization(epsilon=1e-6),
+            keras.layers.LayerNormalization(epsilon=1e-6),
             RandomlyConnectedDense(
                 units=filter_units, activation=tf.nn.gelu, density=density
             ),  # (batch_size, length, filter_units)
-            tf.keras.layers.Dropout(dropout_rate),
+            keras.layers.Dropout(dropout_rate),
             RandomlyConnectedDense(
                 units=units, density=density
             ),  # (batch_size, length, units)
-            tf.keras.layers.Dropout(dropout_rate),
+            keras.layers.Dropout(dropout_rate),
         ]
 
     def call(
@@ -463,7 +463,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
             Transformer encoder layer output with shape [batch_size, length, units]
         """
         if training is None:
-            training = K.learning_phase()
+            training = keras.backend.learning_phase()
 
         x_norm = self._layer_norm(x)  # (batch_size, length, units)
         attn_out, attn_weights = self._mha(
@@ -481,7 +481,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
         return x, attn_weights
 
 
-class TransformerEncoder(tf.keras.layers.Layer):
+class TransformerEncoder(keras.layers.Layer):
     """Transformer encoder.
 
     Encoder stack is made up of `num_layers` identical encoder layers.
@@ -530,7 +530,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
         self.units = units
         self.unidirectional = unidirectional
 
-        l2_regularizer = tf.keras.regularizers.l2(reg_lambda)
+        l2_regularizer = keras.regularizers.l2(reg_lambda)
         self._embedding = RandomlyConnectedDense(
             units=units, kernel_regularizer=l2_regularizer, density=density
         )
@@ -539,7 +539,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
         self._even_indices = np.arange(0, self.units, 2, dtype=np.int32)[:, np.newaxis]
         self._odd_indices = np.arange(1, self.units, 2, dtype=np.int32)[:, np.newaxis]
 
-        self._dropout = tf.keras.layers.Dropout(dropout_rate)
+        self._dropout = keras.layers.Dropout(dropout_rate)
 
         self._enc_layers = [
             TransformerEncoderLayer(
@@ -557,7 +557,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
             )
             for _ in range(num_layers)
         ]
-        self._layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+        self._layer_norm = keras.layers.LayerNormalization(epsilon=1e-6)
 
     def _get_angles(self) -> np.ndarray:
         array_2d = np.arange(self.units)[np.newaxis, :]

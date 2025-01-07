@@ -3,6 +3,7 @@ from typing import Dict, Text, Any, Optional
 
 import logging
 import tensorflow as tf
+import keras
 from tqdm import tqdm
 
 import rasa.shared.utils.io
@@ -10,7 +11,7 @@ import rasa.shared.utils.io
 logger = logging.getLogger(__name__)
 
 
-class RasaTrainingLogger(tf.keras.callbacks.Callback):
+class RasaTrainingLogger(keras.callbacks.Callback):
     """Callback for logging the status of training."""
 
     def __init__(self, epochs: int, silent: bool) -> None:
@@ -44,7 +45,7 @@ class RasaTrainingLogger(tf.keras.callbacks.Callback):
         self.progress_bar.close()
 
 
-class RasaModelCheckpoint(tf.keras.callbacks.Callback):
+class RasaModelCheckpoint(keras.callbacks.Callback):
     """Callback for saving intermediate model checkpoints."""
 
     def __init__(self, checkpoint_dir: Path) -> None:

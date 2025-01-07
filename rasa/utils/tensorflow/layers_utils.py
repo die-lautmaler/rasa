@@ -2,7 +2,6 @@ import tensorflow as tf
 from tensorflow import Tensor
 from typing import Union, Optional
 
-
 def random_indices(
     batch_size: Union[Tensor, int], n: Union[Tensor, int], n_max: Union[Tensor, int]
 ) -> Tensor:

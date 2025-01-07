@@ -10,6 +10,7 @@ from rasa.nlu.featurizers.featurizer import Featurizer
 import numpy as np
 import scipy.sparse
 import tensorflow as tf
+import keras
 
 from typing import Any, Dict, List, Optional, Text, Tuple, Union, TypeVar, Type
 
@@ -908,8 +909,8 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             # No pre-trained model to load from. Create a new instance of the model.
             self.model = self._instantiate_model_class(model_data)
             self.model.compile(
-                optimizer=tf.keras.optimizers.Adam(
-                    self.component_config[LEARNING_RATE]
+                optimizer=keras.optimizers.Adam(
+                    learning_rate=self.component_config[LEARNING_RATE]
                 ),
                 run_eagerly=self.component_config[RUN_EAGERLY],
             )
@@ -941,12 +942,14 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
 
         self.model.fit(
             data_generator,
-            epochs=self.component_config[EPOCHS],
             validation_data=validation_data_generator,
+            epochs=self.component_config[EPOCHS],
             validation_freq=self.component_config[EVAL_NUM_EPOCHS],
             callbacks=callbacks,
             verbose=False,
             shuffle=False,  # we use custom shuffle inside data generator
+            # use_multiprocessing=False,  # Needed for custom data generators
+            # workers=1,  # Needed for custom data generators
         )
 
         self.persist()
@@ -1065,9 +1068,11 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         if self.model is None:
             return None
 
+        # self.model.build()
+
         with self._model_storage.write_to(self._resource) as model_path:
             file_name = self.__class__.__name__
-            tf_model_file = model_path / f"{file_name}.tf_model"
+            tf_model_file = model_path / f"{file_name}.tf_model.weights.h5"
 
             rasa.shared.utils.io.create_directory_for_file(tf_model_file)
 
@@ -1078,7 +1083,9 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
                 checkpoint_marker = model_path / f"{file_name}.from_checkpoint.pkl"
                 checkpoint_marker.touch()
 
-            self.model.save(str(tf_model_file))
+            # self.model.save(str(tf_model_file))
+            keras.models.save_model(self.model, str(tf_model_file), overwrite=True)
+            # self.model.export(str(tf_model_file))
 
             io_utils.pickle_dump(
                 model_path / f"{file_name}.data_example.pkl", self._data_example
@@ -1169,9 +1176,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         )
 
     @classmethod
-    def _load_from_files(
-        cls, model_path: Path
-    ) -> Tuple[
+    def _load_from_files(cls, model_path: Path) -> Tuple[
         Dict[int, Text],
         List[EntityTagSpec],
         RasaModelData,
@@ -1396,17 +1401,17 @@ class DIET(TransformerRasaModel):
     def _create_metrics(self) -> None:
         # self.metrics will have the same order as they are created
         # so create loss metrics first to output losses first
-        self.mask_loss = tf.keras.metrics.Mean(name="m_loss")
-        self.intent_loss = tf.keras.metrics.Mean(name="i_loss")
-        self.entity_loss = tf.keras.metrics.Mean(name="e_loss")
-        self.entity_group_loss = tf.keras.metrics.Mean(name="g_loss")
-        self.entity_role_loss = tf.keras.metrics.Mean(name="r_loss")
+        self.mask_loss = keras.metrics.Mean(name="m_loss")
+        self.intent_loss = keras.metrics.Mean(name="i_loss")
+        self.entity_loss = keras.metrics.Mean(name="e_loss")
+        self.entity_group_loss = keras.metrics.Mean(name="g_loss")
+        self.entity_role_loss = keras.metrics.Mean(name="r_loss")
         # create accuracy metrics second to output accuracies second
-        self.mask_acc = tf.keras.metrics.Mean(name="m_acc")
-        self.intent_acc = tf.keras.metrics.Mean(name="i_acc")
-        self.entity_f1 = tf.keras.metrics.Mean(name="e_f1")
-        self.entity_group_f1 = tf.keras.metrics.Mean(name="g_f1")
-        self.entity_role_f1 = tf.keras.metrics.Mean(name="r_f1")
+        self.mask_acc = keras.metrics.Mean(name="m_acc")
+        self.intent_acc = keras.metrics.Mean(name="i_acc")
+        self.entity_f1 = keras.metrics.Mean(name="e_f1")
+        self.entity_group_f1 = keras.metrics.Mean(name="g_f1")
+        self.entity_role_f1 = keras.metrics.Mean(name="r_f1")
 
     def _update_metrics_to_log(self) -> None:
         debug_log_level = logging.getLogger("rasa").level == logging.DEBUG
@@ -1449,10 +1454,10 @@ class DIET(TransformerRasaModel):
         # everything using a transformer and optionally also do masked language
         # modeling.
         self.text_name = TEXT
-        self._tf_layers[
-            f"sequence_layer.{self.text_name}"
-        ] = rasa_layers.RasaSequenceLayer(
-            self.text_name, self.data_signature[self.text_name], self.config
+        self._tf_layers[f"sequence_layer.{self.text_name}"] = (
+            rasa_layers.RasaSequenceLayer(
+                self.text_name, self.data_signature[self.text_name], self.config
+            )
         )
         if self.config[MASKED_LM]:
             self._prepare_mask_lm_loss(self.text_name)
@@ -1470,10 +1475,10 @@ class DIET(TransformerRasaModel):
                 {SPARSE_INPUT_DROPOUT: False, DENSE_INPUT_DROPOUT: False}
             )
 
-            self._tf_layers[
-                f"feature_combining_layer.{self.label_name}"
-            ] = rasa_layers.RasaFeatureCombiningLayer(
-                self.label_name, self.label_signature[self.label_name], label_config
+            self._tf_layers[f"feature_combining_layer.{self.label_name}"] = (
+                rasa_layers.RasaFeatureCombiningLayer(
+                    self.label_name, self.label_signature[self.label_name], label_config
+                )
             )
 
             self._prepare_ffnn_layer(
@@ -1514,7 +1519,7 @@ class DIET(TransformerRasaModel):
         # convert to bag-of-words by summing along the sequence dimension
         x = tf.reduce_sum(x, axis=1)
 
-        return self._tf_layers[f"ffnn.{name}"](x, self._training)
+        return self._tf_layers[f"ffnn.{name}"](x, training=self._training)
 
     def _create_all_labels(self) -> Tuple[tf.Tensor, tf.Tensor]:
         all_label_ids = self.tf_label_data[LABEL_KEY][LABEL_SUB_KEY][0]
@@ -1524,7 +1529,7 @@ class DIET(TransformerRasaModel):
         )
 
         x = self._create_bow(
-            self.tf_label_data[LABEL][SEQUENCE],
+            self.tf_label_data[LABEL].get(SEQUENCE, []),
             self.tf_label_data[LABEL][SENTENCE],
             sequence_feature_lengths,
             self.label_name,

@@ -64,7 +64,7 @@ clean:
 
 install:
 	poetry run python -m pip install -U pip
-	poetry install
+	poetry install -vv
 
 install-mitie:
 	poetry run python -m pip install -U pip

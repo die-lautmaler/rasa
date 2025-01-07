@@ -1,91 +1,43 @@
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras import backend as K
-from tensorflow.types.experimental import TensorLike
 from typing import Any, Dict, Optional
 
+class FBetaScore(keras.metrics.Metric):
+    """Computes F-beta score.
 
-# original code taken from
-# https://github.com/tensorflow/addons/blob/f30df4322b5580b3e5946530a60f7126035dd73b/tensorflow_addons/metrics/f_scores.py
-# (modified to our neeeds)
-
-
-class FBetaScore(tf.keras.metrics.Metric):
-    r"""Computes F-Beta score.
-
-    It is the weighted harmonic mean of precision
-    and recall. Output range is `[0, 1]`. Works for
-    both multi-class and multi-label classification.
-
-    $$
-    F_{\beta} = (1 + \beta^2) * \frac{\textrm{precision} * \textrm{recall}}
-                                  {(\beta^2 \cdot \textrm{precision}) + \textrm{recall}}
-    $$
-
-    Args:
-        num_classes: Number of unique classes in the dataset.
-        average: Type of averaging to be performed on data.
-            Acceptable values are `None`, `micro`, `macro` and
-            `weighted`. Default value is None.
-        beta: Determines the weight of precision and recall
-            in harmonic mean. Determines the weight given to the
-            precision and recall. Default value is 1.
-        threshold: Elements of `y_pred` greater than threshold are
-            converted to be 1, and the rest 0. If threshold is
-            None, the argmax is converted to 1, and the rest 0.
-        name: (Optional) String name of the metric instance.
-        dtype: (Optional) Data type of the metric result.
-
-    Returns:
-        F-Beta Score: float.
-
-    Raises:
-        ValueError: If the `average` has values other than
-        `[None, 'micro', 'macro', 'weighted']`.
-
-        ValueError: If the `beta` value is less than or equal
-        to 0.
-
-    `average` parameter behavior:
-
-        None: Scores for each class are returned.
-
-        micro: True positivies, false positives and
-            false negatives are computed globally.
-
-        macro: True positivies, false positives and
-            false negatives are computed for each class
-            and their unweighted mean is returned.
-
-        weighted: Metrics are computed for each class
-            and returns the mean weighted by the
-            number of true instances in each class.
-
-    Usage:
-
-    >>> metric = tfa.metrics.FBetaScore(num_classes=3, beta=2.0, threshold=0.5)
-    >>> y_true = np.array([[1, 1, 1],
-    ...                    [1, 0, 0],
-    ...                    [1, 1, 0]], np.int32)
-    >>> y_pred = np.array([[0.2, 0.6, 0.7],
-    ...                    [0.2, 0.6, 0.6],
-    ...                    [0.6, 0.8, 0.0]], np.float32)
-    >>> metric.update_state(y_true, y_pred)
-    >>> result = metric.result()
-    >>> result.numpy()
-    array([0.3846154 , 0.90909094, 0.8333334 ], dtype=float32)
+    This is the weighted harmonic mean of precision and recall.
+    Output range is [0, 1]. Works for both multi-class and multi-label classification.
     """
 
     def __init__(
         self,
-        num_classes: TensorLike,
+        num_classes: int,
         average: Optional[str] = None,
-        beta: TensorLike = 1.0,
-        threshold: Optional[TensorLike] = None,
+        beta: float = 1.0,
+        threshold: Optional[float] = None,
         name: str = "fbeta_score",
         dtype: Any = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(name=name, dtype=dtype)
+        """Creates an F-Beta score instance.
+
+        Args:
+            num_classes: Number of unique classes in the dataset.
+            average: Type of averaging to be performed on data.
+                    Acceptable values are `None`, `micro`, `macro` and
+                    `weighted`. Default value is None.
+            beta: Determines the weight of precision and recall in harmonic mean.
+                 Determines the weight given to the precision and recall.
+                 Default value is 1.0.
+            threshold: Elements of `y_pred` greater than threshold are
+                converted to be 1, and the rest 0. If threshold is
+                None, the argmax is converted to 1, and the rest 0.
+            name: (Optional) String name of the metric instance.
+            dtype: (Optional) Data type of the metric result.
+            **kwargs: Additional keyword arguments.
+        """
+        super().__init__(name=name, dtype=dtype, **kwargs)
 
         if average not in (None, "micro", "macro", "weighted"):
             raise ValueError(
@@ -93,15 +45,10 @@ class FBetaScore(tf.keras.metrics.Metric):
                 "are: [None, 'micro', 'macro', 'weighted']"
             )
 
-        if not isinstance(beta, float):
-            raise TypeError("The value of beta should be a python float")
-
         if beta <= 0.0:
-            raise ValueError("beta value should be greater than zero")
+            raise ValueError("The value of beta should be greater than zero")
 
         if threshold is not None:
-            if not isinstance(threshold, float):
-                raise TypeError("The value of threshold should be a python float")
             if threshold > 1.0 or threshold <= 0.0:
                 raise ValueError("threshold should be between 0 and 1")
 
@@ -116,7 +63,7 @@ class FBetaScore(tf.keras.metrics.Metric):
             self.axis = 0
             self.init_shape = [self.num_classes]
 
-        def _zero_wt_init(name: Any) -> Any:
+        def _zero_wt_init(name):
             return self.add_weight(
                 name, shape=self.init_shape, initializer="zeros", dtype=self.dtype
             )
@@ -128,10 +75,19 @@ class FBetaScore(tf.keras.metrics.Metric):
 
     def update_state(
         self,
-        y_true: TensorLike,
-        y_pred: TensorLike,
-        sample_weight: Optional[TensorLike] = None,
+        y_true: tf.types.experimental.TensorLike,
+        y_pred: tf.types.experimental.TensorLike,
+        sample_weight: Optional[tf.types.experimental.TensorLike] = None,
     ) -> None:
+        """Accumulates confusion matrix statistics.
+
+        Args:
+            y_true: The ground truth values.
+            y_pred: The predicted values.
+            sample_weight: Optional weighting of each example. Defaults to 1.
+                        Can be a `Tensor` whose rank is either 0, or the same rank as
+                        `y_true`, and must be broadcastable to `y_true`.
+        """
         if self.threshold is None:
             threshold = tf.reduce_max(y_pred, axis=-1, keepdims=True)
             # make sure [0, 0, 0] doesn't become [1, 1, 1]
@@ -144,13 +100,16 @@ class FBetaScore(tf.keras.metrics.Metric):
         y_pred = tf.cast(y_pred, self.dtype)
 
         def _weighted_sum(
-            val: TensorLike, sample_weight: Optional[TensorLike]
-        ) -> TensorLike:
+            val: tf.types.experimental.TensorLike,
+            sample_weight: Optional[tf.types.experimental.TensorLike],
+        ) -> tf.types.experimental.TensorLike:
             if sample_weight is not None:
                 val = tf.math.multiply(val, tf.expand_dims(sample_weight, 1))
             return tf.reduce_sum(val, axis=self.axis)
 
-        self.true_positives.assign_add(_weighted_sum(y_pred * y_true, sample_weight))
+        self.true_positives.assign_add(
+            _weighted_sum(y_pred * y_true, sample_weight)
+        )
         self.false_positives.assign_add(
             _weighted_sum(y_pred * (1 - y_true), sample_weight)
         )
@@ -159,7 +118,7 @@ class FBetaScore(tf.keras.metrics.Metric):
         )
         self.weights_intermediate.assign_add(_weighted_sum(y_true, sample_weight))
 
-    def result(self) -> TensorLike:
+    def result(self) -> tf.types.experimental.TensorLike:
         precision = tf.math.divide_no_nan(
             self.true_positives, self.true_positives + self.false_positives
         )
@@ -174,7 +133,8 @@ class FBetaScore(tf.keras.metrics.Metric):
 
         if self.average == "weighted":
             weights = tf.math.divide_no_nan(
-                self.weights_intermediate, tf.reduce_sum(self.weights_intermediate)
+                self.weights_intermediate,
+                tf.reduce_sum(self.weights_intermediate)
             )
             f1_score = tf.reduce_sum(f1_score * weights)
 
@@ -185,6 +145,7 @@ class FBetaScore(tf.keras.metrics.Metric):
 
     def get_config(self) -> Dict[str, Any]:
         """Returns the serializable config of the metric."""
+
         config = {
             "num_classes": self.num_classes,
             "average": self.average,
@@ -196,86 +157,46 @@ class FBetaScore(tf.keras.metrics.Metric):
         return {**base_config, **config}
 
     def reset_state(self) -> None:
-        reset_value = tf.zeros(self.init_shape, dtype=self.dtype)
-        K.batch_set_value([(v, reset_value) for v in self.variables])
-
-    def reset_states(self) -> None:
-        # Backwards compatibility alias of `reset_state`. New classes should
-        # only implement `reset_state`.
-        # Required in Tensorflow < 2.5.0
-        return self.reset_state()
+        """Resets all of the metric state variables."""
+        self.true_positives.assign(tf.zeros(self.init_shape, self.dtype))
+        self.false_positives.assign(tf.zeros(self.init_shape, self.dtype))
+        self.false_negatives.assign(tf.zeros(self.init_shape, self.dtype))
+        self.weights_intermediate.assign(tf.zeros(self.init_shape, self.dtype))
 
 
 class F1Score(FBetaScore):
-    r"""Computes F-1 Score.
+    """Computes F-1 Score.
 
-    It is the harmonic mean of precision and recall.
-    Output range is `[0, 1]`. Works for both multi-class
-    and multi-label classification.
-
-    $$
-    F_1 = 2 \cdot \frac{\textrm{precision} \cdot \textrm{recall}}{\textrm{precision}
-          + \textrm{recall}}
-    $$
-
-    Args:
-        num_classes: Number of unique classes in the dataset.
-        average: Type of averaging to be performed on data.
-            Acceptable values are `None`, `micro`, `macro`
-            and `weighted`. Default value is None.
-        threshold: Elements of `y_pred` above threshold are
-            considered to be 1, and the rest 0. If threshold is
-            None, the argmax is converted to 1, and the rest 0.
-        name: (Optional) String name of the metric instance.
-        dtype: (Optional) Data type of the metric result.
-
-    Returns:
-        F-1 Score: float.
-
-    Raises:
-        ValueError: If the `average` has values other than
-        [None, 'micro', 'macro', 'weighted'].
-
-    `average` parameter behavior:
-        None: Scores for each class are returned
-
-        micro: True positivies, false positives and
-            false negatives are computed globally.
-
-        macro: True positivies, false positives and
-            false negatives are computed for each class
-            and their unweighted mean is returned.
-
-        weighted: Metrics are computed for each class
-            and returns the mean weighted by the
-            number of true instances in each class.
-
-    Usage:
-
-    >>> metric = tfa.metrics.F1Score(num_classes=3, threshold=0.5)
-    >>> y_true = np.array([[1, 1, 1],
-    ...                    [1, 0, 0],
-    ...                    [1, 1, 0]], np.int32)
-    >>> y_pred = np.array([[0.2, 0.6, 0.7],
-    ...                    [0.2, 0.6, 0.6],
-    ...                    [0.6, 0.8, 0.0]], np.float32)
-    >>> metric.update_state(y_true, y_pred)
-    >>> result = metric.result()
-    >>> result.numpy()
-    array([0.5      , 0.8      , 0.6666667], dtype=float32)
+    This is the harmonic mean of precision and recall.
+    Output range is [0, 1]. Works for both multi-class and multi-label classification.
     """
 
     def __init__(
         self,
-        num_classes: TensorLike,
+        num_classes: int,
         average: Optional[str] = None,
-        threshold: Optional[TensorLike] = None,
+        threshold: Optional[float] = None,
         name: str = "f1_score",
         dtype: Any = None,
     ):
-        super().__init__(num_classes, average, 1.0, threshold, name=name, dtype=dtype)
+        """Creates an F-1 score instance.
 
-    def get_config(self) -> Dict[str, Any]:
-        base_config = super().get_config()
-        del base_config["beta"]
-        return base_config
+        Args:
+            num_classes: Number of unique classes in the dataset.
+            average: Type of averaging to be performed on data.
+                    Acceptable values are `None`, `micro`, `macro` and
+                    `weighted`. Default value is None.
+            threshold: Elements of `y_pred` greater than threshold are
+                converted to be 1, and the rest 0. If threshold is
+                None, the argmax is converted to 1, and the rest 0.
+            name: (Optional) String name of the metric instance.
+            dtype: (Optional) Data type of the metric result.
+        """
+        super().__init__(
+            num_classes=num_classes,
+            average=average,
+            beta=1.0,
+            threshold=threshold,
+            name=name,
+            dtype=dtype,
+        )

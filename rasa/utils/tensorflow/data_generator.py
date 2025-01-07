@@ -1,10 +1,10 @@
-import math
-from typing import List, Union, Text, Optional, Any, Tuple, Dict, cast
-
+import keras
 import logging
-import scipy.sparse
+import math
 import numpy as np
-from tensorflow.keras.utils import Sequence
+import scipy.sparse
+
+from typing import List, Union, Text, Optional, Any, Tuple, Dict, cast
 
 from rasa.utils.tensorflow.constants import SEQUENCE, BALANCED
 from rasa.utils.tensorflow.model_data import RasaModelData, Data, FeatureArray
@@ -12,7 +12,7 @@ from rasa.utils.tensorflow.model_data import RasaModelData, Data, FeatureArray
 logger = logging.getLogger(__name__)
 
 
-class RasaDataGenerator(Sequence):
+class RasaDataGenerator(keras.utils.Sequence):
     """Abstract data generator."""
 
     def __init__(
@@ -34,6 +34,7 @@ class RasaDataGenerator(Sequence):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.batch_strategy = batch_strategy
+        super().__init__(use_multiprocessing=False, workers=1)
 
     def __len__(self) -> int:
         """Number of batches in the Sequence.
@@ -401,7 +402,7 @@ class RasaBatchDataGenerator(RasaDataGenerator):
 
         # return input and target data, as our target data is inside the input
         # data return None for the target data
-        return self.prepare_batch(self._data, start, end), None
+        return self.prepare_batch(self._data, start, end),
 
     def on_epoch_end(self) -> None:
         """Update the data after every epoch."""
