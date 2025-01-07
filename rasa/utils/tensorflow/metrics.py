@@ -1,7 +1,10 @@
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
+import keras
+
+# from tensorflow import keras
+# from tensorflow.keras import backend as K
 from typing import Any, Dict, Optional
+
 
 class FBetaScore(keras.metrics.Metric):
     """Computes F-beta score.
@@ -107,9 +110,7 @@ class FBetaScore(keras.metrics.Metric):
                 val = tf.math.multiply(val, tf.expand_dims(sample_weight, 1))
             return tf.reduce_sum(val, axis=self.axis)
 
-        self.true_positives.assign_add(
-            _weighted_sum(y_pred * y_true, sample_weight)
-        )
+        self.true_positives.assign_add(_weighted_sum(y_pred * y_true, sample_weight))
         self.false_positives.assign_add(
             _weighted_sum(y_pred * (1 - y_true), sample_weight)
         )
@@ -133,8 +134,7 @@ class FBetaScore(keras.metrics.Metric):
 
         if self.average == "weighted":
             weights = tf.math.divide_no_nan(
-                self.weights_intermediate,
-                tf.reduce_sum(self.weights_intermediate)
+                self.weights_intermediate, tf.reduce_sum(self.weights_intermediate)
             )
             f1_score = tf.reduce_sum(f1_score * weights)
 
