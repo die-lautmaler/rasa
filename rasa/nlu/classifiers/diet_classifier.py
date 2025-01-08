@@ -905,6 +905,9 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         # keep one example for persisting and loading
         self._data_example = model_data.first_data_example()
 
+        # Disable XLA JIT compilation as it doesn't support some sparse tensor ops
+        tf.config.optimizer.set_jit(False)
+
         if not self.finetune_mode:
             # No pre-trained model to load from. Create a new instance of the model.
             self.model = self._instantiate_model_class(model_data)
@@ -1529,8 +1532,12 @@ class DIET(TransformerRasaModel):
         )
 
         x = self._create_bow(
+            # FIXME: unclear if this is the correct fix
+            #  before there was a key error
+            # self.tf_label_data[LABEL][SEQUENCE],
+            # self.tf_label_data[LABEL][SENTENCE],
             self.tf_label_data[LABEL].get(SEQUENCE, []),
-            self.tf_label_data[LABEL][SENTENCE],
+            self.tf_label_data[LABEL].get(SENTENCE, []),
             sequence_feature_lengths,
             self.label_name,
         )
