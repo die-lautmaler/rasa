@@ -307,7 +307,7 @@ class ConcatenateSparseDenseFeatures(RasaCustomLayer):
         if self.SPARSE_DROPOUT in self._tf_layers:
             feature = self._tf_layers[self.SPARSE_DROPOUT](feature, training=training)
 
-        feature = self._tf_layers[self.SPARSE_TO_DENSE](feature)
+        feature = self._tf_layers[self.SPARSE_TO_DENSE](feature, training=training)
 
         if self.DENSE_DROPOUT in self._tf_layers:
             feature = self._tf_layers[self.DENSE_DROPOUT](feature, training=training)
