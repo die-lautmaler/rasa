@@ -202,7 +202,7 @@ class DenseForSparse(keras.layers.Dense):
 
         # outputs will be 2D
         outputs = tf.sparse.sparse_dense_matmul(
-            tf.sparse.reshape(inputs, [-1, tf.shape(inputs)[-1]]), self.kernel
+            tf.reshape(inputs, [-1, tf.shape(inputs)[-1]]), self.kernel
         )
 
         if len(inputs.shape) == 3:
