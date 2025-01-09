@@ -9,37 +9,36 @@ from typing import Tuple, Any, List, Union, Optional
 # (modified to our neeeds)
 
 
-# class CrfDecodeForwardRnnCell(keras.layers.Layer):
-class CrfDecodeForwardRnnCell(keras.layers.RNN):
+class CrfDecodeForwardRnnCell(keras.layers.Layer):
     """Computes the forward decoding in a linear-chain CRF."""
 
-    def __init__(
-        self, transition_params: tf.types.experimental.TensorLike, **kwargs: Any
-    ) -> None:
+    def __init__(self, transition_params: tf.Variable, **kwargs: Any) -> None:
         """Initialize the CrfDecodeForwardRnnCell.
 
         Args:
-          transition_params: A [num_tags, num_tags] matrix of binary
-            potentials. This matrix is expanded into a
-            [1, num_tags, num_tags] in preparation for the broadcast
-            summation occurring within the cell.
+            transition_params: A [num_tags, num_tags] matrix of binary
+                potentials. This matrix is expanded into a
+                [1, num_tags, num_tags] in preparation for the broadcast
+                summation occurring within the cell.
         """
         super().__init__(**kwargs)
-        self._transition_params = tf.expand_dims(transition_params, 0)
-        self._num_tags = transition_params.shape[0]
+        self.transition_params = tf.expand_dims(transition_params, 0)
+        self.state_size = tf.TensorShape(transition_params.shape[0])
 
-    @property
-    def state_size(self) -> int:
-        return self._num_tags
+    def build(self, input_shape: tf.TensorShape) -> None:
+        """Build the cell.
+        
+        Args:
+            input_shape: The shape of the input tensor, 
+                expected to be [batch_size, num_tags].
+        """
+        # No trainable weights needed for this cell
+        self.built = True
 
     @property
     def output_size(self) -> int:
         """Returns count of tags."""
-        return self._num_tags
-
-    def build(self, input_shape: Union[TensorShape, List[TensorShape]]) -> None:
-        """Creates the variables of the layer."""
-        super().build(input_shape)
+        return self.state_size * 2
 
     def call(
         self,
@@ -58,7 +57,7 @@ class CrfDecodeForwardRnnCell(keras.layers.RNN):
           new_state: A [batch_size, num_tags] matrix of new score values.
         """
         state = tf.expand_dims(state[0], 2)
-        transition_scores = state + self._transition_params
+        transition_scores = state + self.transition_params
         new_state = inputs + tf.reduce_max(transition_scores, [1])
 
         backpointers = tf.argmax(transition_scores, 1)
