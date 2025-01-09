@@ -9,8 +9,8 @@ from typing import Tuple, Any, List, Union, Optional
 # (modified to our neeeds)
 
 
-# class CrfDecodeForwardRnnCell(tf.keras.layers.AbstractRNNCell):
-class CrfDecodeForwardRnnCell(keras.layers.Layer):
+# class CrfDecodeForwardRnnCell(keras.layers.Layer):
+class CrfDecodeForwardRnnCell(keras.layers.RNN):
     """Computes the forward decoding in a linear-chain CRF."""
 
     def __init__(
@@ -441,11 +441,14 @@ def crf_log_norm(
     # over the "initial state" (the unary potentials).
     def _single_seq_fn() -> tf.types.experimental.TensorLike:
         log_norm = tf.reduce_logsumexp(first_input, [1])
-        # Mask `log_norm` of the sequences with length <= zero.
-        log_norm = tf.where(
-            tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
-        )
-        return log_norm
+
+        # On GPU this gives an error of missing XLA operator
+        with tf.xla.experimental.jit_scope(False):
+            # Mask `log_norm` of the sequences with length <= zero.
+            log_norm = tf.where(
+                tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
+            )
+            return log_norm
 
     def _multi_seq_fn() -> tf.types.experimental.TensorLike:
         """Forward computation of alpha values."""
@@ -457,11 +460,13 @@ def crf_log_norm(
             rest_of_input, first_input, transition_params, sequence_lengths
         )
         log_norm = tf.reduce_logsumexp(alphas, [1])
-        # Mask `log_norm` of the sequences with length <= zero.
-        log_norm = tf.where(
-            tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
-        )
-        return log_norm
+        # On GPU this gives an error of missing XLA operator
+        with tf.xla.experimental.jit_scope(False):
+            # Mask `log_norm` of the sequences with length <= zero.
+            log_norm = tf.where(
+                tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
+            )
+            return log_norm
 
     return tf.cond(tf.equal(tf.shape(inputs)[1], 1), _single_seq_fn, _multi_seq_fn)
 
