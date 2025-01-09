@@ -6,7 +6,7 @@ from typing import Tuple, Any, List, Union, Optional
 
 # original code taken from
 # https://github.com/tensorflow/addons/blob/b8cab7fd61af4f697a1cdae4f51c37c346b9c6f0/tensorflow_addons/text/crf.py
-# (modified to our neeeds)
+# (modified to our needs)
 
 
 class CrfDecodeForwardRnnCell(keras.layers.Layer):
@@ -22,8 +22,8 @@ class CrfDecodeForwardRnnCell(keras.layers.Layer):
                 summation occurring within the cell.
         """
         super().__init__(**kwargs)
-        self.transition_params = tf.expand_dims(transition_params, 0)
-        self.state_size = tf.TensorShape(transition_params.shape[0])
+        self._transition_params = tf.expand_dims(transition_params, 0)
+        self._num_tags = transition_params.shape[0]
 
     def build(self, input_shape: tf.TensorShape) -> None:
         """Build the cell.
@@ -36,9 +36,12 @@ class CrfDecodeForwardRnnCell(keras.layers.Layer):
         self.built = True
 
     @property
+    def state_size(self) -> int:
+        return self._num_tags
+
+    @property
     def output_size(self) -> int:
-        """Returns count of tags."""
-        return self.state_size * 2
+        return self._num_tags * 2
 
     def call(
         self,
@@ -57,7 +60,7 @@ class CrfDecodeForwardRnnCell(keras.layers.Layer):
           new_state: A [batch_size, num_tags] matrix of new score values.
         """
         state = tf.expand_dims(state[0], 2)
-        transition_scores = state + self.transition_params
+        transition_scores = state + self._transition_params
         new_state = inputs + tf.reduce_max(transition_scores, [1])
 
         backpointers = tf.argmax(transition_scores, 1)
