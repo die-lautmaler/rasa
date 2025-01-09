@@ -200,7 +200,8 @@ class DenseForSparse(keras.layers.Dense):
             raise ValueError("Input tensor should be sparse.")
 
         # On GPU this gives an error of missing XLA operator
-        with tf.xla.experimental.jit_scope(False):
+        # with tf.xla.experimental.jit_scope(False):
+        with tf.device("/CPU:0"):
             # outputs will be 2D
             if len(inputs.shape) == 3:
                 # Use sparse reshape for 3D inputs
