@@ -442,11 +442,11 @@ def crf_log_norm(
     # If max_seq_len is 1, we skip the algorithm and simply reduce_logsumexp
     # over the "initial state" (the unary potentials).
     def _single_seq_fn() -> tf.types.experimental.TensorLike:
-        log_norm = tf.reduce_logsumexp(first_input, [1])
-
         # On GPU this gives an error of missing XLA operator
         # with tf.xla.experimental.jit_scope(False):
         with tf.device("/CPU:0"):
+            log_norm = tf.reduce_logsumexp(first_input, [1])
+
             # Mask `log_norm` of the sequences with length <= zero.
             log_norm = tf.where(
                 tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
@@ -455,17 +455,14 @@ def crf_log_norm(
 
     def _multi_seq_fn() -> tf.types.experimental.TensorLike:
         """Forward computation of alpha values."""
-        rest_of_input = tf.slice(inputs, [0, 1, 0], [-1, -1, -1])
-        # Compute the alpha values in the forward algorithm in order to get the
-        # partition function.
-
-        alphas = crf_forward(
-            rest_of_input, first_input, transition_params, sequence_lengths
-        )
-        log_norm = tf.reduce_logsumexp(alphas, [1])
-        # On GPU this gives an error of missing XLA operator
-        # with tf.xla.experimental.jit_scope(False):
         with tf.device("/CPU:0"):
+            rest_of_input = tf.slice(inputs, [0, 1, 0], [-1, -1, -1])
+            # Compute the alpha values in the forward algorithm in order to get the
+            # partition function.
+            alphas = crf_forward(
+                rest_of_input, first_input, transition_params, sequence_lengths
+            )
+            log_norm = tf.reduce_logsumexp(alphas, [1])
             # Mask `log_norm` of the sequences with length <= zero.
             log_norm = tf.where(
                 tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
