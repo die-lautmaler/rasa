@@ -199,18 +199,20 @@ class DenseForSparse(keras.layers.Dense):
         if not isinstance(inputs, tf.SparseTensor):
             raise ValueError("Input tensor should be sparse.")
 
-        # outputs will be 2D
-        if len(inputs.shape) == 3:
-            # Use sparse reshape for 3D inputs
-            reshaped = tf.sparse.reshape(inputs, [-1, tf.shape(inputs)[-1]])
-            outputs = tf.sparse.sparse_dense_matmul(reshaped, self.kernel)
-            # reshape back
-            outputs = tf.reshape(
-                outputs, (tf.shape(inputs)[0], tf.shape(inputs)[1], self.units)
-            )
-        else:
-            # For 2D inputs, just do the matrix multiplication
-            outputs = tf.sparse.sparse_dense_matmul(inputs, self.kernel)
+        # On GPU this gives an error of missing XLA operator
+        with tf.xla.experimental.jit_scope(False):
+            # outputs will be 2D
+            if len(inputs.shape) == 3:
+                # Use sparse reshape for 3D inputs
+                reshaped = tf.sparse.reshape(inputs, [-1, tf.shape(inputs)[-1]])
+                outputs = tf.sparse.sparse_dense_matmul(reshaped, self.kernel)
+                # reshape back
+                outputs = tf.reshape(
+                    outputs, (tf.shape(inputs)[0], tf.shape(inputs)[1], self.units)
+                )
+            else:
+                # For 2D inputs, just do the matrix multiplication
+                outputs = tf.sparse.sparse_dense_matmul(inputs, self.kernel)
 
         if self.use_bias:
             outputs = tf.nn.bias_add(outputs, self.bias)
