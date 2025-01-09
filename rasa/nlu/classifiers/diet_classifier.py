@@ -309,8 +309,6 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
                 f"Please configure the number of '{EPOCHS}' in your configuration file."
                 f" We will change the default value of '{EPOCHS}' in the future to 1. "
             )
-        # Disable XLA JIT compilation as it doesn't support some sparse tensor ops
-        tf.config.optimizer.set_jit(False)
 
         self.component_config = config
         self._model_storage = model_storage
@@ -318,6 +316,8 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         self._execution_context = execution_context
 
         self._check_config_parameters()
+        # taken from https://stackoverflow.com/questions/65140708/compilation-failure-detected-unsupported-operations-when-trying-to-compile-grap
+        tf.config.set_soft_device_placement(True)
 
         # transform numbers to labels
         self.index_label_id_mapping = index_label_id_mapping or {}

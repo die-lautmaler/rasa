@@ -24,6 +24,8 @@ class CrfDecodeForwardRnnCell(keras.layers.Layer):
         super().__init__(**kwargs)
         self._transition_params = tf.expand_dims(transition_params, 0)
         self._num_tags = transition_params.shape[0]
+        # taken from https://stackoverflow.com/questions/65140708/compilation-failure-detected-unsupported-operations-when-trying-to-compile-grap
+        tf.config.set_soft_device_placement(True)
 
     def build(self, input_shape: tf.TensorShape) -> None:
         """Build the cell.
