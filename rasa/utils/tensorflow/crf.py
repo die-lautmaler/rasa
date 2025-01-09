@@ -27,9 +27,9 @@ class CrfDecodeForwardRnnCell(keras.layers.Layer):
 
     def build(self, input_shape: tf.TensorShape) -> None:
         """Build the cell.
-        
+
         Args:
-            input_shape: The shape of the input tensor, 
+            input_shape: The shape of the input tensor,
                 expected to be [batch_size, num_tags].
         """
         # No trainable weights needed for this cell
@@ -445,7 +445,8 @@ def crf_log_norm(
         log_norm = tf.reduce_logsumexp(first_input, [1])
 
         # On GPU this gives an error of missing XLA operator
-        with tf.xla.experimental.jit_scope(False):
+        # with tf.xla.experimental.jit_scope(False):
+        with tf.device("/CPU:0"):
             # Mask `log_norm` of the sequences with length <= zero.
             log_norm = tf.where(
                 tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
@@ -463,7 +464,8 @@ def crf_log_norm(
         )
         log_norm = tf.reduce_logsumexp(alphas, [1])
         # On GPU this gives an error of missing XLA operator
-        with tf.xla.experimental.jit_scope(False):
+        # with tf.xla.experimental.jit_scope(False):
+        with tf.device("/CPU:0"):
             # Mask `log_norm` of the sequences with length <= zero.
             log_norm = tf.where(
                 tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
