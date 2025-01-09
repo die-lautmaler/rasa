@@ -68,7 +68,6 @@ class SparseDropout(keras.layers.Dropout):
         if not isinstance(inputs, tf.SparseTensor):
             raise ValueError("Input tensor should be sparse.")
 
-
         def dropped_inputs() -> tf.SparseTensor:
             to_retain_prob = tf.random.uniform(
                 tf.shape(inputs.values), 0, 1, inputs.values.dtype
@@ -201,15 +200,17 @@ class DenseForSparse(keras.layers.Dense):
             raise ValueError("Input tensor should be sparse.")
 
         # outputs will be 2D
-        outputs = tf.sparse.sparse_dense_matmul(
-            tf.reshape(inputs, [-1, tf.shape(inputs)[-1]]), self.kernel
-        )
-
         if len(inputs.shape) == 3:
+            # Use sparse reshape for 3D inputs
+            reshaped = tf.sparse.reshape(inputs, [-1, tf.shape(inputs)[-1]])
+            outputs = tf.sparse.sparse_dense_matmul(reshaped, self.kernel)
             # reshape back
             outputs = tf.reshape(
                 outputs, (tf.shape(inputs)[0], tf.shape(inputs)[1], self.units)
             )
+        else:
+            # For 2D inputs, just do the matrix multiplication
+            outputs = tf.sparse.sparse_dense_matmul(inputs, self.kernel)
 
         if self.use_bias:
             outputs = tf.nn.bias_add(outputs, self.bias)

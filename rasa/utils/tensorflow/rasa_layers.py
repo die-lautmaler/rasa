@@ -308,7 +308,7 @@ class ConcatenateSparseDenseFeatures(RasaCustomLayer):
             feature = self._tf_layers[self.SPARSE_DROPOUT](feature, training=training)
         # On GPU this gives an error of missing XLA operator
         with tf.xla.experimental.jit_scope(False):
-        # with tf.device("/CPU:0"):
+            # with tf.device("/CPU:0"):
             feature = self._tf_layers[self.SPARSE_TO_DENSE](feature, training=training)
 
         if self.DENSE_DROPOUT in self._tf_layers:
@@ -617,6 +617,33 @@ class RasaFeatureCombiningLayer(RasaCustomLayer):
             combined_sequence_sentence_feature_lengths = sequence_feature_lengths
 
         return sentence_features_combined, combined_sequence_sentence_feature_lengths
+
+    def build(
+        self,
+        input_shape: Tuple[
+            List[Union[tf.Tensor, tf.SparseTensor]],
+            List[Union[tf.Tensor, tf.SparseTensor]],
+            tf.Tensor,
+        ],
+    ) -> None:
+        """Creates the layer's variables."""
+        # Build all sub-layers
+        sequence_features_shape = input_shape[0] if input_shape[0] else []
+        sentence_features_shape = input_shape[1] if input_shape[1] else []
+
+        if (
+            SEQUENCE in self._feature_types_present
+            and f"sparse_dense.{SEQUENCE}" in self._tf_layers
+        ):
+            self._tf_layers[f"sparse_dense.{SEQUENCE}"].build(sequence_features_shape)
+
+        if (
+            SENTENCE in self._feature_types_present
+            and f"sparse_dense.{SENTENCE}" in self._tf_layers
+        ):
+            self._tf_layers[f"sparse_dense.{SENTENCE}"].build(sentence_features_shape)
+
+        self.built = True
 
     def call(
         self,
