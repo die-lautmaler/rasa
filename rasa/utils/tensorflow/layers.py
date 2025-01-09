@@ -104,16 +104,16 @@ class DenseForSparse(keras.layers.Dense):
             activation: Activation function to use.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
-        use_bias: Indicates whether the layer uses a bias vector.
-        kernel_initializer: Initializer for the `kernel` weights matrix.
-        bias_initializer: Initializer for the bias vector.
-        reg_lambda: regularization factor
-        bias_regularizer: Regularizer function applied to the bias vector.
-        activity_regularizer: Regularizer function applied to
+            use_bias: Indicates whether the layer uses a bias vector.
+            kernel_initializer: Initializer for the `kernel` weights matrix.
+            bias_initializer: Initializer for the bias vector.
+            reg_lambda: regularization factor
+            bias_regularizer: Regularizer function applied to the bias vector.
+            activity_regularizer: Regularizer function applied to
             the output of the layer (its "activation")..
-        kernel_constraint: Constraint function applied to
+            kernel_constraint: Constraint function applied to
             the `kernel` weights matrix.
-        bias_constraint: Constraint function applied to the bias vector.
+            bias_constraint: Constraint function applied to the bias vector.
 
     Input shape:
         N-D tensor with shape: `(batch_size, ..., input_dim)`.
@@ -202,18 +202,26 @@ class DenseForSparse(keras.layers.Dense):
         # On GPU this gives an error of missing XLA operator
         # with tf.xla.experimental.jit_scope(False):
         with tf.device("/CPU:0"):
-            # outputs will be 2D
+            # Convert sparse to dense first
             if len(inputs.shape) == 3:
-                # Use sparse reshape for 3D inputs
-                reshaped = tf.sparse.reshape(inputs, [-1, tf.shape(inputs)[-1]])
-                outputs = tf.sparse.sparse_dense_matmul(reshaped, self.kernel)
-                # reshape back
-                outputs = tf.reshape(
-                    outputs, (tf.shape(inputs)[0], tf.shape(inputs)[1], self.units)
-                )
+                # Get original shape components
+                batch_size = tf.shape(inputs)[0]
+                seq_len = tf.shape(inputs)[1]
+                input_dim = tf.shape(inputs)[2]
+
+                # Convert to dense and reshape
+                dense_inputs = tf.sparse.to_dense(inputs)
+                reshaped = tf.reshape(dense_inputs, [-1, input_dim])
+
+                # Perform matrix multiplication
+                outputs = tf.matmul(reshaped, self.kernel)
+
+                # Reshape back to 3D
+                outputs = tf.reshape(outputs, [batch_size, seq_len, self.units])
             else:
-                # For 2D inputs, just do the matrix multiplication
-                outputs = tf.sparse.sparse_dense_matmul(inputs, self.kernel)
+                # For 2D inputs, convert to dense and multiply
+                dense_inputs = tf.sparse.to_dense(inputs)
+                outputs = tf.matmul(dense_inputs, self.kernel)
 
         if self.use_bias:
             outputs = tf.nn.bias_add(outputs, self.bias)
