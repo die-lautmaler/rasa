@@ -421,45 +421,36 @@ def crf_log_norm(
     inputs: tf.types.experimental.TensorLike,
     sequence_lengths: tf.types.experimental.TensorLike,
     transition_params: tf.types.experimental.TensorLike,
-) -> tf.Tensor:
+) -> tf.types.experimental.TensorLike:
     """Computes the normalization for a CRF.
 
     Args:
-      inputs: A [batch_size, max_seq_len, num_tags] tensor of unary potentials
-          to use as input to the CRF layer.
-      sequence_lengths: A [batch_size] vector of true sequence lengths.
-      transition_params: A [num_tags, num_tags] transition matrix.
+        inputs: A [batch_size, max_seq_len, num_tags] tensor of unary potentials
+            to use as input to the CRF layer.
+        sequence_lengths: A [batch_size] vector of true sequence lengths.
+        transition_params: A [num_tags, num_tags] transition matrix.
 
     Returns:
-      log_norm: A [batch_size] vector of normalizers for a CRF.
+        log_norm: A [batch_size] vector of normalizers for a CRF.
     """
-    sequence_lengths = tf.cast(sequence_lengths, dtype=tf.int32)
     # Split up the first and rest of the inputs in preparation for the forward
     # algorithm.
     first_input = tf.slice(inputs, [0, 0, 0], [-1, 1, -1])
     first_input = tf.squeeze(first_input, [1])
 
-    # If max_seq_len is 1, we skip the algorithm and simply reduce_logsumexp
-    # over the "initial state" (the unary potentials).
-    def _single_seq_fn() -> tf.types.experimental.TensorLike:
-        # On GPU this gives an error of missing XLA operator
-        with tf.xla.experimental.jit_scope(False):
-            with tf.device("/CPU:0"):
+    # On GPU this gives an error of missing XLA operator
+    with tf.xla.experimental.jit_scope(False):
+        with tf.device("/CPU:0"):
+            def _single_seq_fn() -> tf.types.experimental.TensorLike:
                 log_norm = tf.reduce_logsumexp(first_input, [1])
-
                 # Mask `log_norm` of the sequences with length <= zero.
                 log_norm = tf.where(
-                    tf.less_equal(sequence_lengths, 0),
-                    tf.zeros_like(log_norm),
-                    log_norm,
+                    tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
                 )
                 return log_norm
 
-    def _multi_seq_fn() -> tf.types.experimental.TensorLike:
-        """Forward computation of alpha values."""
-        # On GPU this gives an error of missing XLA operator
-        with tf.xla.experimental.jit_scope(False):
-            with tf.device("/CPU:0"):
+            def _multi_seq_fn() -> tf.types.experimental.TensorLike:
+                """Forward computation of alpha values."""
                 rest_of_input = tf.slice(inputs, [0, 1, 0], [-1, -1, -1])
                 # Compute the alpha values in the forward algorithm in order to get the
                 # partition function.
@@ -467,13 +458,13 @@ def crf_log_norm(
                     rest_of_input, first_input, transition_params, sequence_lengths
                 )
                 log_norm = tf.reduce_logsumexp(alphas, [1])
-            # Mask `log_norm` of the sequences with length <= zero.
-            log_norm = tf.where(
-                tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
-            )
-            return log_norm
+                # Mask `log_norm` of the sequences with length <= zero.
+                log_norm = tf.where(
+                    tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
+                )
+                return log_norm
 
-    return tf.cond(tf.equal(tf.shape(inputs)[1], 1), _single_seq_fn, _multi_seq_fn)
+            return tf.cond(tf.equal(tf.shape(inputs)[1], 1), _single_seq_fn, _multi_seq_fn)
 
 
 def crf_log_likelihood(
