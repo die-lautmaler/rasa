@@ -32,7 +32,7 @@ from rasa.utils.tensorflow.transformer import TransformerEncoder
 from rasa.nlu.constants import DEFAULT_TRANSFORMER_SIZE
 
 
-class RasaCustomLayer(tf.keras.layers.Layer):
+class RasaCustomLayer(keras.layers.Layer):
     """Parent class for all classes in `rasa_layers.py`.
 
     Allows a shared implementation for adjusting `DenseForSparse`
@@ -274,7 +274,7 @@ class ConcatenateSparseDenseFeatures(RasaCustomLayer):
         # For optionally apply dropout to sparse tensors after they're converted to
         # dense tensors.
         if config[DENSE_INPUT_DROPOUT]:
-            self._tf_layers[self.DENSE_DROPOUT] = tf.keras.layers.Dropout(
+            self._tf_layers[self.DENSE_DROPOUT] = keras.layers.Dropout(
                 rate=config[DROP_RATE]
             )
 
@@ -414,7 +414,7 @@ class RasaFeatureCombiningLayer(RasaCustomLayer):
 
         super().__init__(name=f"rasa_feature_combining_layer_{attribute}")
 
-        self._tf_layers: Dict[Text, tf.keras.layers.Layer] = {}
+        self._tf_layers: Dict[Text, keras.layers.Layer] = {}
 
         # Prepare sparse-dense combining layers for each present feature type
         self._feature_types_present = self._get_present_feature_types(

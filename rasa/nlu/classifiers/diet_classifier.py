@@ -8,11 +8,12 @@ from rasa.exceptions import ModelNotFound
 from rasa.nlu.featurizers.featurizer import Featurizer
 
 import numpy as np
-import scipy.sparse
+# import scipy.sparse
+from scipy.sparse import spmatrix
 import tensorflow as tf
 import keras
 
-from typing import Any, Dict, List, Optional, Text, Tuple, Union, TypeVar, Type
+from typing import Any, Dict, List, Optional, Text, Tuple, Union, TypeVar, Type, DefaultDict
 
 from rasa.engine.graph import ExecutionContext, GraphComponent
 from rasa.engine.recipes.default_recipe import DefaultV1Recipe
@@ -299,7 +300,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         execution_context: ExecutionContext,
         index_label_id_mapping: Optional[Dict[int, Text]] = None,
         entity_tag_specs: Optional[List[EntityTagSpec]] = None,
-        model: Optional[RasaModel] = None,
+        model: Optional[TransformerRasaModel] = None,
         sparse_feature_sizes: Optional[Dict[Text, Dict[Text, List[int]]]] = None,
     ) -> None:
         """Declare instance variables with default values."""
@@ -308,6 +309,8 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
                 f"Please configure the number of '{EPOCHS}' in your configuration file."
                 f" We will change the default value of '{EPOCHS}' in the future to 1. "
             )
+        # Disable XLA JIT compilation as it doesn't support some sparse tensor ops
+        tf.config.optimizer.set_jit(False)
 
         self.component_config = config
         self._model_storage = model_storage
@@ -410,7 +413,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         return LABEL_SUB_KEY if self.component_config[INTENT_CLASSIFICATION] else None
 
     @staticmethod
-    def model_class() -> Type[RasaModel]:
+    def model_class() -> Type[DIET]:
         return DIET
 
     # training data helpers:
@@ -506,7 +509,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
 
     def _extract_features(
         self, message: Message, attribute: Text
-    ) -> Dict[Text, Union[scipy.sparse.spmatrix, np.ndarray]]:
+    ) -> Dict[Text, Union[spmatrix, np.ndarray]]:
 
         (
             sparse_sequence_features,
@@ -1235,7 +1238,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         entity_tag_specs: List[EntityTagSpec],
         label_data: RasaModelData,
         config: Dict[Text, Any],
-        data_example: Dict[Text, Dict[Text, List[FeatureArray]]],
+        data_example: DefaultDict[Text, DefaultDict[Text, List[FeatureArray]]],
         model_path: Path,
         finetune_mode: bool = False,
     ) -> "RasaModel":
@@ -1263,7 +1266,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
     @classmethod
     def _load_model_class(
         cls,
-        tf_model_file: Text,
+        tf_model_file: Union[Text, Path],
         model_data_example: RasaModelData,
         label_data: RasaModelData,
         entity_tag_specs: List[EntityTagSpec],
@@ -1291,7 +1294,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             finetune_mode=finetune_mode,
         )
 
-    def _instantiate_model_class(self, model_data: RasaModelData) -> "RasaModel":
+    def _instantiate_model_class(self, model_data: RasaModelData) -> "TransformerRasaModel":
         return self.model_class()(
             data_signature=model_data.get_signature(),
             label_data=self._label_data,

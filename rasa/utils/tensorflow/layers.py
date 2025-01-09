@@ -68,8 +68,6 @@ class SparseDropout(keras.layers.Dropout):
         if not isinstance(inputs, tf.SparseTensor):
             raise ValueError("Input tensor should be sparse.")
 
-        if training is None:
-            training = tf.backend.learning_phase()
 
         def dropped_inputs() -> tf.SparseTensor:
             to_retain_prob = tf.random.uniform(

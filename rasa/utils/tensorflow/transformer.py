@@ -254,8 +254,8 @@ class MultiHeadAttention(keras.layers.Layer):
 
             return logits + drop_mask * -1e9
 
-        return tf.python.keras.utils.control_flow_util.smart_cond(
-            training, droped_logits, lambda: tf.identity(logits)
+        return tf.cond(
+            tf.constant(training), droped_logits, lambda: tf.identity(logits)
         )
 
     def _scaled_dot_product_attention(
