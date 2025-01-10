@@ -85,6 +85,11 @@ class SparseDropout(keras.layers.Dropout):
         return tf.SparseTensor(outputs.indices, outputs.values, inputs._dense_shape)
 
 
+@tf.function(jit_compile=False)
+def wrapped_reorder(input: tf.SparseTensor) -> tf.SparseTensor:
+    return tf.sparse.reorder(input)
+
+
 class DenseForSparse(keras.layers.Dense):
     """Dense layer for sparse input tensor.
 
@@ -204,7 +209,7 @@ class DenseForSparse(keras.layers.Dense):
         with tf.device("/CPU:0"):
             with tf.xla.experimental.jit_scope(False):
                 # First ensure the sparse tensor is ordered
-                inputs_ordered = tf.sparse.reorder(inputs)
+                inputs_ordered = wrapped_reorder(inputs)
 
                 # Convert sparse to dense first
                 if len(inputs.shape) == 3:
