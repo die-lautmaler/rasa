@@ -12,6 +12,7 @@ import numpy as np
 from scipy.sparse import spmatrix
 import tensorflow as tf
 import keras
+from tensorflow.python.framework.ops import disable_eager_execution()
 
 from typing import Any, Dict, List, Optional, Text, Tuple, Union, TypeVar, Type, DefaultDict
 
@@ -318,6 +319,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         self._check_config_parameters()
         # taken from https://stackoverflow.com/questions/65140708/compilation-failure-detected-unsupported-operations-when-trying-to-compile-grap
         tf.config.set_soft_device_placement(True)
+        disable_eager_execution()
 
         # transform numbers to labels
         self.index_label_id_mapping = index_label_id_mapping or {}

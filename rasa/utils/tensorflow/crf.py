@@ -1,5 +1,6 @@
 import tensorflow as tf
 import keras
+from tensorflow.python.framework.ops import disable_eager_execution
 
 from tensorflow import TensorShape
 from typing import Tuple, Any, List, Union, Optional
@@ -26,6 +27,7 @@ class CrfDecodeForwardRnnCell(keras.layers.Layer):
         self._num_tags = transition_params.shape[0]
         # taken from https://stackoverflow.com/questions/65140708/compilation-failure-detected-unsupported-operations-when-trying-to-compile-grap
         tf.config.set_soft_device_placement(True)
+        disable_eager_execution()
 
     def build(self, input_shape: tf.TensorShape) -> None:
         """Build the cell.
@@ -441,32 +443,41 @@ def crf_log_norm(
     first_input = tf.squeeze(first_input, [1])
 
     # On GPU this gives an error of missing XLA operator
-    with tf.xla.experimental.jit_scope(False):
-        with tf.device("/CPU:0"):
-            def _single_seq_fn() -> tf.types.experimental.TensorLike:
-                log_norm = tf.reduce_logsumexp(first_input, [1])
-                # Mask `log_norm` of the sequences with length <= zero.
-                log_norm = tf.where(
-                    tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
-                )
-                return log_norm
+    # with tf.xla.experimental.jit_scope(False):
+    with tf.device("/CPU:0"):
 
-            def _multi_seq_fn() -> tf.types.experimental.TensorLike:
-                """Forward computation of alpha values."""
-                rest_of_input = tf.slice(inputs, [0, 1, 0], [-1, -1, -1])
-                # Compute the alpha values in the forward algorithm in order to get the
-                # partition function.
-                alphas = crf_forward(
-                    rest_of_input, first_input, transition_params, sequence_lengths
-                )
-                log_norm = tf.reduce_logsumexp(alphas, [1])
-                # Mask `log_norm` of the sequences with length <= zero.
-                log_norm = tf.where(
-                    tf.less_equal(sequence_lengths, 0), tf.zeros_like(log_norm), log_norm
-                )
-                return log_norm
+        def _single_seq_fn() -> tf.types.experimental.TensorLike:
+            log_norm = tf.reduce_logsumexp(first_input, [1])
+            # Mask `log_norm` of the sequences with length <= zero.
+            log_norm = tf.where(
+                tf.less_equal(sequence_lengths, 0),
+                tf.zeros_like(log_norm),
+                log_norm,
+            )
+            return log_norm
 
-            return tf.cond(tf.equal(tf.shape(inputs)[1], 1), _single_seq_fn, _multi_seq_fn)
+        def _multi_seq_fn() -> tf.types.experimental.TensorLike:
+            """Forward computation of alpha values."""
+            rest_of_input = tf.slice(inputs, [0, 1, 0], [-1, -1, -1])
+            # Compute the alpha values in the forward algorithm in order to get the
+            # partition function.
+            alphas = crf_forward(
+                rest_of_input, first_input, transition_params, sequence_lengths
+            )
+            log_norm = tf.reduce_logsumexp(alphas, [1])
+            # Mask `log_norm` of the sequences with length <= zero.
+            log_norm = tf.where(
+                tf.less_equal(sequence_lengths, 0),
+                tf.zeros_like(log_norm),
+                log_norm,
+            )
+            return log_norm
+
+        res = tf.cond(
+            tf.equal(tf.shape(inputs)[1], 1), _single_seq_fn, _multi_seq_fn
+        )
+
+        return res
 
 
 def crf_log_likelihood(
