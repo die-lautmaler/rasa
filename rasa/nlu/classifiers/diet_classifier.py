@@ -12,7 +12,7 @@ import numpy as np
 from scipy.sparse import spmatrix
 import tensorflow as tf
 import keras
-from tensorflow.python.framework.ops import disable_eager_execution()
+from tensorflow.python.framework.ops import disable_eager_execution
 
 from typing import Any, Dict, List, Optional, Text, Tuple, Union, TypeVar, Type, DefaultDict
 
