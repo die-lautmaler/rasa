@@ -210,7 +210,7 @@ class DenseForSparse(keras.layers.Dense):
                 input_dim = tf.shape(inputs)[2]
 
                 # Convert to dense and reshape
-                dense_inputs = tf.sparse.to_dense(inputs)
+                dense_inputs = tf.sparse.to_dense(tf.sparse.reorder(inputs))
                 reshaped = tf.reshape(dense_inputs, [-1, input_dim])
 
                 # Perform matrix multiplication

@@ -8,13 +8,25 @@ from rasa.exceptions import ModelNotFound
 from rasa.nlu.featurizers.featurizer import Featurizer
 
 import numpy as np
+
 # import scipy.sparse
 from scipy.sparse import spmatrix
 import tensorflow as tf
 import keras
 from tensorflow.python.framework.ops import disable_eager_execution
 
-from typing import Any, Dict, List, Optional, Text, Tuple, Union, TypeVar, Type, DefaultDict
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Text,
+    Tuple,
+    Union,
+    TypeVar,
+    Type,
+    DefaultDict,
+)
 
 from rasa.engine.graph import ExecutionContext, GraphComponent
 from rasa.engine.recipes.default_recipe import DefaultV1Recipe
@@ -319,7 +331,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         self._check_config_parameters()
         # taken from https://stackoverflow.com/questions/65140708/compilation-failure-detected-unsupported-operations-when-trying-to-compile-grap
         tf.config.set_soft_device_placement(True)
-        disable_eager_execution()
+        # disable_eager_execution()
 
         # transform numbers to labels
         self.index_label_id_mapping = index_label_id_mapping or {}
@@ -1296,7 +1308,9 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             finetune_mode=finetune_mode,
         )
 
-    def _instantiate_model_class(self, model_data: RasaModelData) -> "TransformerRasaModel":
+    def _instantiate_model_class(
+        self, model_data: RasaModelData
+    ) -> "TransformerRasaModel":
         return self.model_class()(
             data_signature=model_data.get_signature(),
             label_data=self._label_data,
