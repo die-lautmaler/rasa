@@ -2,6 +2,7 @@ import logging
 from typing import List, Optional, Text, Tuple, Callable, Union, Any
 import tensorflow as tf
 import keras
+from tensorflow.python.framework.ops import disable_eager_execution
 
 
 import rasa.utils.tensorflow.crf
@@ -201,29 +202,31 @@ class DenseForSparse(keras.layers.Dense):
 
         # On GPU this gives an error of missing XLA operator
         # with tf.xla.experimental.jit_scope(False):
-        with tf.device("/CPU:0"):
-            # Convert sparse to dense first
-            if len(inputs.shape) == 3:
-                # Get original shape components
-                batch_size = tf.shape(inputs)[0]
-                seq_len = tf.shape(inputs)[1]
-                input_dim = tf.shape(inputs)[2]
+        # with tf.device("/CPU:0"):
+        # Convert sparse to dense first
+        if len(inputs.shape) == 3:
+            # Get original shape components
+            batch_size = tf.shape(inputs)[0]
+            seq_len = tf.shape(inputs)[1]
+            input_dim = tf.shape(inputs)[2]
 
-                input_f = tf.cast(inputs, tf.float32)
+            input_f = tf.cast(inputs, tf.float32)
+            with tf.xla.experimental.jit_scope(False):
                 input_r = tf.sparse.reorder(input_f)
-                # Convert to dense and reshape
-                dense_inputs = tf.sparse.to_dense(input_r)
-                reshaped = tf.reshape(dense_inputs, [-1, input_dim])
 
-                # Perform matrix multiplication
-                outputs = tf.matmul(reshaped, self.kernel)
+            # Convert to dense and reshape
+            dense_inputs = tf.sparse.to_dense(input_r)
+            reshaped = tf.reshape(dense_inputs, [-1, input_dim])
 
-                # Reshape back to 3D
-                outputs = tf.reshape(outputs, [batch_size, seq_len, self.units])
-            else:
-                # For 2D inputs, convert to dense and multiply
-                dense_inputs = tf.sparse.to_dense(inputs)
-                outputs = tf.matmul(dense_inputs, self.kernel)
+            # Perform matrix multiplication
+            outputs = tf.matmul(reshaped, self.kernel)
+
+            # Reshape back to 3D
+            outputs = tf.reshape(outputs, [batch_size, seq_len, self.units])
+        else:
+            # For 2D inputs, convert to dense and multiply
+            dense_inputs = tf.sparse.to_dense(inputs)
+            outputs = tf.matmul(dense_inputs, self.kernel)
 
         if self.use_bias:
             outputs = tf.nn.bias_add(outputs, self.bias)
