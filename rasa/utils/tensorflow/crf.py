@@ -466,9 +466,10 @@ def crf_log_norm(
             )
             log_norm = tf.reduce_logsumexp(alphas, [1])
             # Mask `log_norm` of the sequences with length <= zero.
+            # errors out on GPU
             log_norm = tf.where(
                 tf.less_equal(sequence_lengths, 0),
-                tf.zeros_like(log_norm),
+                tf.zeros_like(log_norm,dtype=tf.float32),
                 log_norm,
             )
             return log_norm
