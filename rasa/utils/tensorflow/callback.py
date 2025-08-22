@@ -58,6 +58,8 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
         self.wandb_logger = wandb_logger
         self.current_epoch = 0
         self.batches_per_epoch = 0
+        self.global_step = 0  # Global step counter for monotonic logging
+        self.batch_log_interval = 10  # Log every N batches to reduce frequency
         
         # Initialize previous validation metrics for comparison
         if self.wandb_logger:
@@ -77,6 +79,13 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
         
         if wandb_logger is None or logs is None:
             return
+
+        # Only log every N batches to reduce logging frequency
+        if batch % self.batch_log_interval != 0:
+            return
+
+        # Increment global step counter
+        self.global_step += 1
 
         # Log batch-level metrics to wandb for real-time monitoring
         try:
@@ -120,18 +129,11 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
             
             # Add batch metadata
             wandb_metrics['training/batch'] = batch
+            wandb_metrics['training/global_step'] = self.global_step
+            wandb_metrics['training/epoch'] = self.current_epoch + 1
             
-            # Calculate global step across epochs
-            if self.batches_per_epoch > 0:
-                global_step = self.current_epoch * self.batches_per_epoch + batch + 1
-                wandb_metrics['training/global_step'] = global_step
-                wandb_metrics['training/epoch'] = self.current_epoch + 1
-                step_for_logging = global_step
-            else:
-                step_for_logging = batch
-            
-            # Log to wandb with global step
-            wandb_logger.log_metrics(wandb_metrics, step=step_for_logging)
+            # Log to wandb with monotonic global step
+            wandb_logger.log_metrics(wandb_metrics, step=self.global_step)
             
         except Exception as e:
             logger.debug(f"Failed to log batch metrics to wandb: {e}")
@@ -225,16 +227,12 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
                 else:
                     training_metrics[key] = numeric_value
             
+            # Increment global step counter for epoch-level logging
+            self.global_step += 1
+            
             # Add epoch number and step metadata
             wandb_metrics['training/epoch'] = epoch + 1  # Make it 1-based
-            
-            # Calculate global step for epoch-level metrics - use end of epoch
-            if self.batches_per_epoch > 0:
-                global_step = (epoch + 1) * self.batches_per_epoch
-                wandb_metrics['training/global_step_epoch'] = global_step
-                step_for_logging = global_step
-            else:
-                step_for_logging = epoch
+            wandb_metrics['training/global_step_epoch'] = self.global_step
             
             # Add summary metrics if we have both training and validation
             if training_metrics and validation_metrics:
@@ -267,8 +265,8 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
                 # Store current validation metrics for next comparison
                 wandb_logger._previous_val_metrics = validation_metrics.copy()
             
-            # Log to wandb with proper step
-            wandb_logger.log_metrics(wandb_metrics, step=step_for_logging)
+            # Log to wandb with monotonic global step
+            wandb_logger.log_metrics(wandb_metrics, step=self.global_step)
             
         except Exception as e:
             logger.debug(f"Failed to log training metrics to wandb: {e}")
