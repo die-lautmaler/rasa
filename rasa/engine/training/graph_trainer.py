@@ -1,7 +1,7 @@
 import copy
 import logging
 from pathlib import Path
-from typing import Any, Dict, Text, Type, Union
+from typing import Any, Dict, Text, Type, Union, Optional
 
 from rasa.engine.caching import TrainingCache
 from rasa.engine.graph import ExecutionContext, GraphSchema, GraphModelConfiguration
