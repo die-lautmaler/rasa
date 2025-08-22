@@ -300,7 +300,7 @@ version = ">=0.39, <0.43"
 optional = true
 
 [tool.poetry.dependencies.wandb]
-version = ">=0.15.0"
+version = ">=0.15.0,<1.0"
 optional = true
 
 [tool.poetry.dependencies.pymongo]
