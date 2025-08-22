@@ -932,12 +932,16 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             self.component_config[EVAL_NUM_EXAMPLES],
             self.component_config[RANDOM_SEED],
         )
+        # Get wandb logger from thread-local context
+        from rasa.utils.wandb_utils import get_current_wandb_logger
+        current_wandb_logger = get_current_wandb_logger()
+        
         callbacks = train_utils.create_common_callbacks(
             self.component_config[EPOCHS],
             self.component_config[TENSORBOARD_LOG_DIR],
             self.component_config[TENSORBOARD_LOG_LEVEL],
             self.tmp_checkpoint_dir,
-            wandb_logger=None,  # Will be obtained from thread-local context
+            wandb_logger=current_wandb_logger,
         )
 
         self.model.fit(

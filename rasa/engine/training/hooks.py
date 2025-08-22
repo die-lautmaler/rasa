@@ -182,9 +182,9 @@ class WandBHook(GraphNodeHook):
         # Record component start time for duration tracking
         self._component_start_times[node_name] = time.time()
 
-        # Log component configuration
-        component_name = execution_context.graph_schema.nodes[node_name].uses.__name__
-        self._wandb_logger.log_config({f"component_{component_name}_config": config})
+        # Don't log component configurations to avoid wandb config conflicts
+        # Only the actual training metrics (loss, accuracy, f1) will be logged
+        # through the RasaWandBLogger callback during model training
 
         return {"start_time": self._component_start_times[node_name]}
 
