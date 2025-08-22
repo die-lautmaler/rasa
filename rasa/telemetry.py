@@ -458,7 +458,7 @@ def _is_docker() -> bool:
 
 
 def with_default_context_fields(
-    context: Optional[Dict[Text, Any]] = None
+    context: Optional[Dict[Text, Any]] = None,
 ) -> Dict[Text, Any]:
     """Return a new context dictionary with default and provided field values merged.
 
@@ -932,19 +932,19 @@ def track_server_start(
             "number_of_workers": number_of_workers,
             "endpoints_nlg": endpoints.nlg.type if endpoints.nlg else None,
             "endpoints_nlu": endpoints.nlu.type if endpoints.nlu else None,
-            "endpoints_action_server": endpoints.action.type
-            if endpoints.action
-            else None,
+            "endpoints_action_server": (
+                endpoints.action.type if endpoints.action else None
+            ),
             "endpoints_model_server": endpoints.model.type if endpoints.model else None,
-            "endpoints_tracker_store": endpoints.tracker_store.type
-            if endpoints.tracker_store
-            else None,
-            "endpoints_lock_store": endpoints.lock_store.type
-            if endpoints.lock_store
-            else None,
-            "endpoints_event_broker": endpoints.event_broker.type
-            if endpoints.event_broker
-            else None,
+            "endpoints_tracker_store": (
+                endpoints.tracker_store.type if endpoints.tracker_store else None
+            ),
+            "endpoints_lock_store": (
+                endpoints.lock_store.type if endpoints.lock_store else None
+            ),
+            "endpoints_event_broker": (
+                endpoints.event_broker.type if endpoints.event_broker else None
+            ),
             "project": project_fingerprint_from_model(model_directory),
         },
     )

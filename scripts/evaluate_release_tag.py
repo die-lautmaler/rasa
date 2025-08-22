@@ -1,6 +1,5 @@
-"""Evaluate release tag for whether docs should be built or not.
+"""Evaluate release tag for whether docs should be built or not."""
 
-"""
 import argparse
 from subprocess import check_output
 from typing import List
@@ -11,7 +10,9 @@ from pep440_version_utils import Version, is_valid_version
 def create_argument_parser() -> argparse.ArgumentParser:
     """Parse all the command line arguments for the release script."""
 
-    parser = argparse.ArgumentParser(description="Evaluate whether docs should be built for release tag.")
+    parser = argparse.ArgumentParser(
+        description="Evaluate whether docs should be built for release tag."
+    )
     parser.add_argument(
         "tag",
         type=str,
@@ -38,9 +39,16 @@ def git_plain_tag_versions(versions: List[Version]) -> List[Version]:
     """Return non-alpha/rc existing tags"""
     return [version for version in versions if is_plain_version(version)]
 
+
 def filter_ga_relases(tags: List[Version]) -> List[Version]:
     """Return all general availability (GA) releases"""
-    return [tag for tag in tags if tag.is_alpha is False and tag.is_beta is False and tag.is_release_candidate is False]
+    return [
+        tag
+        for tag in tags
+        if tag.is_alpha is False
+        and tag.is_beta is False
+        and tag.is_release_candidate is False
+    ]
 
 
 def should_build_docs(tag: Version) -> bool:
@@ -54,7 +62,9 @@ def should_build_docs(tag: Version) -> bool:
     need_to_build_docs = False
 
     if not is_plain_version(tag):
-        print(f"Tag {tag} is an alpha, beta, rc, nightly, or otherwise non-standard version.")
+        print(
+            f"Tag {tag} is an alpha, beta, rc, nightly, or otherwise non-standard version."
+        )
     elif tag >= latest_version:
         print(f"Tag {tag} is the latest version. Docs should be built.")
         need_to_build_docs = True

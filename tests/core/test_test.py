@@ -61,9 +61,11 @@ def _probabilities_with_action_unlikely_intent_for(
             return PolicyPrediction.for_action_name(
                 domain,
                 ACTION_UNLIKELY_INTENT_NAME,
-                action_metadata=metadata_for_intent.get(intent_name)
-                if metadata_for_intent
-                else None,
+                action_metadata=(
+                    metadata_for_intent.get(intent_name)
+                    if metadata_for_intent
+                    else None
+                ),
             )
 
         return _original(self, tracker, domain, **kwargs)
@@ -73,7 +75,10 @@ def _probabilities_with_action_unlikely_intent_for(
 
 def _custom_prediction_states_for_rules(
     ignore_action_unlikely_intent: bool = False,
-) -> Callable[[RulePolicy, DialogueStateTracker, Domain, bool], List[State],]:
+) -> Callable[
+    [RulePolicy, DialogueStateTracker, Domain, bool],
+    List[State],
+]:
     """Creates prediction states for `RulePolicy`.
 
     `RulePolicy` does not ignore `action_unlikely_intent` in reality.

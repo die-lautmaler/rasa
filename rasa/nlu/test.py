@@ -1250,9 +1250,7 @@ def align_all_entity_predictions(
     return aligned_predictions
 
 
-async def get_eval_data(
-    processor: MessageProcessor, test_data: TrainingData
-) -> Tuple[
+async def get_eval_data(processor: MessageProcessor, test_data: TrainingData) -> Tuple[
     List[IntentEvaluationResult],
     List[ResponseSelectionEvaluationResult],
     List[EntityEvaluationResult],

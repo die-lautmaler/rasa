@@ -412,8 +412,7 @@ def test_register_component_using_tracker():
     class MyClassGraphComponent(GraphComponent):
         def process(
             self, messages: List[Message], tracker: DialogueStateTracker
-        ) -> List[Message]:
-            ...
+        ) -> List[Message]: ...
 
     config = rasa.shared.utils.io.read_yaml(
         """

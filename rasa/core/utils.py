@@ -214,7 +214,7 @@ class AvailableEndpoints:
 
 
 def read_endpoints_from_path(
-    endpoints_path: Optional[Union[Path, Text]] = None
+    endpoints_path: Optional[Union[Path, Text]] = None,
 ) -> AvailableEndpoints:
     """Get `AvailableEndpoints` object from specified path.
 
@@ -281,7 +281,7 @@ def replace_decimals_with_floats(obj: Any) -> Any:
 
 
 def _lock_store_is_multi_worker_compatible(
-    lock_store: Union[EndpointConfig, LockStore, None]
+    lock_store: Union[EndpointConfig, LockStore, None],
 ) -> bool:
     if isinstance(lock_store, InMemoryLockStore):
         return False

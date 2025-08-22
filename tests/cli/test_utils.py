@@ -273,7 +273,7 @@ def test_get_validated_config_with_invalid_input(parameters: Dict[Text, Any]) ->
     ],
 )
 def test_get_validated_config_with_default_and_no_config(
-    parameters: Dict[Text, Any]
+    parameters: Dict[Text, Any],
 ) -> None:
     config_path = None
     default_config_content = {

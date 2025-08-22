@@ -457,36 +457,37 @@ def train_nlu(
     # Initialize wandb logging if requested
     wandb_logger = None
     use_wandb = additional_arguments and additional_arguments.get("wandb", False)
-    
+
     if use_wandb:
         from rasa.utils.wandb_utils import create_wandb_logger, extract_training_metrics
         import time
-        
+
         # Create run name with timestamp
         run_name = f"rasa-nlu-{int(time.time())}"
         if fixed_model_name:
             run_name = f"{fixed_model_name}-{int(time.time())}"
-            
+
         # Extract training metrics
         model_config = file_importer.get_config()
         metrics = extract_training_metrics(training_data, model_config)
-        
+
         # Initialize wandb logger
         wandb_logger = create_wandb_logger(
-            config={"model_config": model_config, **metrics},
-            run_name=run_name
+            config={"model_config": model_config, **metrics}, run_name=run_name
         )
-        
+
         if wandb_logger:
-            wandb_logger.log_config({
-                "training_data_path": nlu_data,
-                "config_path": config,
-                "output_path": output,
-                "persist_nlu_training_data": persist_nlu_training_data,
-                "model_to_finetune": model_to_finetune,
-                "finetuning_epoch_fraction": finetuning_epoch_fraction,
-                **metrics
-            })
+            wandb_logger.log_config(
+                {
+                    "training_data_path": nlu_data,
+                    "config_path": config,
+                    "output_path": output,
+                    "persist_nlu_training_data": persist_nlu_training_data,
+                    "model_to_finetune": model_to_finetune,
+                    "finetuning_epoch_fraction": finetuning_epoch_fraction,
+                    **metrics,
+                }
+            )
 
     try:
         result = _train_graph(
@@ -500,17 +501,17 @@ def train_nlu(
             wandb_logger=wandb_logger,
             **(additional_arguments or {}),
         )
-        
+
         # Log model artifact to wandb if training was successful
         if wandb_logger and result.model:
             wandb_logger.log_artifact(
                 artifact_path=result.model,
                 artifact_name=f"nlu-model-{int(time.time()) if 'time' in locals() else ''}",
-                artifact_type="model"
+                artifact_type="model",
             )
-            
+
         return result.model
-        
+
     finally:
         # Ensure wandb run is finished
         if wandb_logger:

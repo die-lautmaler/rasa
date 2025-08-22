@@ -2,6 +2,7 @@
 
 - increases the version number to dev version provided
 """
+
 import argparse
 import os
 import sys
@@ -20,7 +21,9 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(description="prepare the next nightly release")
     parser.add_argument(
-        "--next_version", type=str, help="Rasa nightly version number",
+        "--next_version",
+        type=str,
+        help="Rasa nightly version number",
     )
 
     return parser
@@ -53,7 +56,9 @@ def write_version_to_pyproject(pyproject_file_path: Text, version: Version) -> N
         data = toml.load(pyproject_file)
         data["tool"]["poetry"]["name"] = "rasa-nightly"
         data["tool"]["poetry"]["version"] = str(version)
-        data["tool"]["poetry"]["packages"] = [{"include" : "rasa"},]
+        data["tool"]["poetry"]["packages"] = [
+            {"include": "rasa"},
+        ]
         with pyproject_file.open("w", encoding="utf8") as f:
             toml.dump(data, f)
     except (FileNotFoundError, TypeError):
@@ -78,7 +83,9 @@ def print_done_message(version: Version) -> None:
     """Print final information for the user on what to do next."""
 
     print()
-    print(f"\033[94m All done - changes for rasa nightly version {version} are ready! \033[0m")
+    print(
+        f"\033[94m All done - changes for rasa nightly version {version} are ready! \033[0m"
+    )
     print()
 
 

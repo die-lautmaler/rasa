@@ -5,6 +5,7 @@
 - increases the version number
 - pushes the new branch to GitHub
 """
+
 import argparse
 import os
 import re

@@ -531,9 +531,9 @@ class RasaYAMLWriter(TrainingDataWriter):
             )
 
             if examples_have_metadata or example_texts_have_escape_chars:
-                intent[
-                    key_examples
-                ] = RasaYAMLWriter._render_training_examples_as_objects(converted)
+                intent[key_examples] = (
+                    RasaYAMLWriter._render_training_examples_as_objects(converted)
+                )
             else:
                 intent[key_examples] = RasaYAMLWriter._render_training_examples_as_text(
                     converted

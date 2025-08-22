@@ -90,7 +90,7 @@ class GraphTrainer:
                 pruned_schema=pruned_training_schema,
             ),
         ]
-        
+
         # Add WandB hook if wandb_logger is provided
         if wandb_logger is not None:
             hooks.append(WandBHook(wandb_logger=wandb_logger))

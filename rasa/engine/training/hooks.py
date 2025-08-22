@@ -171,19 +171,17 @@ class WandBHook(GraphNodeHook):
     ) -> Dict:
         """Records the start time for training component timing."""
         import time
-        
+
         if self._wandb_logger is None:
             return {}
-            
+
         # Record component start time for duration tracking
         self._component_start_times[node_name] = time.time()
-        
+
         # Log component configuration
         component_name = execution_context.graph_schema.nodes[node_name].uses.__name__
-        self._wandb_logger.log_config({
-            f"component_{component_name}_config": config
-        })
-        
+        self._wandb_logger.log_config({f"component_{component_name}_config": config})
+
         return {"start_time": self._component_start_times[node_name]}
 
     def on_after_node(
@@ -196,38 +194,36 @@ class WandBHook(GraphNodeHook):
     ) -> None:
         """Logs component training metrics to wandb."""
         import time
-        
+
         if self._wandb_logger is None:
             return
-            
+
         component_name = execution_context.graph_schema.nodes[node_name].uses.__name__
-        
+
         # Calculate training duration
         start_time = input_hook_data.get("start_time")
         if start_time:
             duration = time.time() - start_time
-            self._wandb_logger.log_metrics({
-                f"component_{component_name}_training_duration": duration
-            })
-        
+            self._wandb_logger.log_metrics(
+                {f"component_{component_name}_training_duration": duration}
+            )
+
         # Log component-specific metrics
         try:
-            if hasattr(output, 'get_metrics'):
+            if hasattr(output, "get_metrics"):
                 # Some components might have a get_metrics method
                 component_metrics = output.get_metrics()
                 if isinstance(component_metrics, dict):
                     prefixed_metrics = {
-                        f"component_{component_name}_{k}": v 
+                        f"component_{component_name}_{k}": v
                         for k, v in component_metrics.items()
                         if isinstance(v, (int, float))
                     }
                     self._wandb_logger.log_metrics(prefixed_metrics)
-                    
+
             # Log general component completion
-            self._wandb_logger.log_metrics({
-                f"component_{component_name}_completed": 1
-            })
-            
+            self._wandb_logger.log_metrics({f"component_{component_name}_completed": 1})
+
         except Exception as e:
             logger.debug(f"Failed to log wandb metrics for {component_name}: {e}")
 

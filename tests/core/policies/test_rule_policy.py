@@ -1441,7 +1441,7 @@ async def test_form_unhappy_path_from_story(policy: RulePolicy):
 
 
 async def test_form_unhappy_path_no_validation_from_rule(
-    policy_with_config: Callable[..., RulePolicy]
+    policy_with_config: Callable[..., RulePolicy],
 ):
     form_name = "some_form"
     handle_rejection_action_name = "utter_handle_rejection"
@@ -2097,7 +2097,7 @@ def test_predict_core_fallback(
 
 
 def test_predict_nothing_if_fallback_disabled(
-    policy_with_config: Callable[..., RulePolicy]
+    policy_with_config: Callable[..., RulePolicy],
 ):
     other_intent = "other"
     domain = Domain.from_yaml(

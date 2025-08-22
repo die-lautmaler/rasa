@@ -293,9 +293,9 @@ class DefaultV1RecipeValidator(GraphComponent):
         Both of these look for the same entities based on the same training data
         leading to ambiguity in the results.
         """
-        extractors_in_configuration: Set[
-            Type[GraphComponent]
-        ] = self._component_types.intersection(TRAINABLE_EXTRACTORS)
+        extractors_in_configuration: Set[Type[GraphComponent]] = (
+            self._component_types.intersection(TRAINABLE_EXTRACTORS)
+        )
         if len(extractors_in_configuration) > 1:
             rasa.shared.utils.io.raise_warning(
                 f"You have defined multiple entity extractors that do the same job "
