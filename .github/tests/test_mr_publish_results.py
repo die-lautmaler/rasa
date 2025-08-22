@@ -4,7 +4,7 @@ import sys
 from unittest import mock
 
 sys.path.append(".github/scripts")
-from mr_publish_results import (  # noqa: E402
+from mr_publish_results import (
     prepare_ml_metric,
     prepare_ml_metrics,
     transform_to_seconds,

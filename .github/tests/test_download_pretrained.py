@@ -7,7 +7,7 @@ import pytest
 from ruamel.yaml import YAML
 
 sys.path.append(".github/scripts")
-import download_pretrained  # noqa: E402
+import download_pretrained
 
 CONFIG_FPATH = Path(__file__).parent / "test_data" / "bert_diet_response2t.yml"
 
