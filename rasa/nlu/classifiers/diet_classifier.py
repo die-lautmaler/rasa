@@ -937,6 +937,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             self.component_config[TENSORBOARD_LOG_DIR],
             self.component_config[TENSORBOARD_LOG_LEVEL],
             self.tmp_checkpoint_dir,
+            wandb_logger=None,  # Will be obtained from thread-local context
         )
 
         self.model.fit(

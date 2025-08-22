@@ -678,6 +678,7 @@ class TEDPolicy(Policy):
             self.config[TENSORBOARD_LOG_DIR],
             self.config[TENSORBOARD_LOG_LEVEL],
             self.tmp_checkpoint_dir,
+            wandb_logger=None,  # Will be obtained from thread-local context
         )
 
         if self.model is None:

@@ -4,8 +4,12 @@ import logging
 from typing import Any, Dict, Optional, Text, List
 import functools
 import os
+import threading
 
 logger = logging.getLogger(__name__)
+
+# Thread-local storage for wandb logger context
+_local = threading.local()
 
 # Flag to track if wandb is available
 WANDB_AVAILABLE = False
@@ -189,6 +193,24 @@ class WandBLogger:
             logger.warning(f"Failed to finish wandb run: {e}")
         finally:
             self.run = None
+
+
+def set_current_wandb_logger(wandb_logger: Optional[Any]) -> None:
+    """Set the current wandb logger in thread-local storage.
+    
+    Args:
+        wandb_logger: The wandb logger instance to set as current.
+    """
+    _local.current_wandb_logger = wandb_logger
+
+
+def get_current_wandb_logger() -> Optional[Any]:
+    """Get the current wandb logger from thread-local storage.
+    
+    Returns:
+        The current wandb logger instance, or None if not set.
+    """
+    return getattr(_local, 'current_wandb_logger', None)
 
 
 def create_wandb_logger(

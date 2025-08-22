@@ -28,7 +28,7 @@ from rasa.utils.tensorflow.constants import (
     TOLERANCE,
     CHECKPOINT_MODEL,
 )
-from rasa.utils.tensorflow.callback import RasaTrainingLogger, RasaModelCheckpoint
+from rasa.utils.tensorflow.callback import RasaTrainingLogger, RasaModelCheckpoint, RasaWandBLogger
 from rasa.utils.tensorflow.data_generator import RasaBatchDataGenerator
 from rasa.utils.tensorflow.model_data import RasaModelData
 from rasa.shared.nlu.constants import SPLIT_ENTITIES_BY_COMMA
@@ -346,6 +346,7 @@ def create_common_callbacks(
     tensorboard_log_dir: Optional[Text] = None,
     tensorboard_log_level: Optional[Text] = None,
     checkpoint_dir: Optional[Path] = None,
+    wandb_logger: Optional[Any] = None,
 ) -> List["Callback"]:
     """Create common callbacks.
 
@@ -353,6 +354,7 @@ def create_common_callbacks(
     - RasaTrainingLogger callback
     - Optional TensorBoard callback
     - Optional RasaModelCheckpoint callback
+    - Optional RasaWandBLogger callback
 
     Args:
         epochs: the number of epochs to train
@@ -360,6 +362,7 @@ def create_common_callbacks(
         tensorboard_log_level: defines when training metrics for tensorboard should be
                                logged. Valid values: 'epoch' and 'batch'.
         checkpoint_dir: optional directory that should be used for model checkpointing
+        wandb_logger: optional WandB logger instance for logging training metrics
 
     Returns:
         A list of callbacks.
@@ -367,6 +370,9 @@ def create_common_callbacks(
     import tensorflow as tf
 
     callbacks = [RasaTrainingLogger(epochs, silent=False)]
+
+    if wandb_logger:
+        callbacks.append(RasaWandBLogger(wandb_logger))
 
     if tensorboard_log_dir:
         callbacks.append(

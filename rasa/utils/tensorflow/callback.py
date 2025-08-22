@@ -44,6 +44,70 @@ class RasaTrainingLogger(tf.keras.callbacks.Callback):
         self.progress_bar.close()
 
 
+class RasaWandBLogger(tf.keras.callbacks.Callback):
+    """Callback for logging training metrics to Weights & Biases."""
+
+    def __init__(self, wandb_logger: Optional[Any] = None) -> None:
+        """Initializes the callback.
+
+        Args:
+            wandb_logger: WandB logger instance for logging metrics.
+                         If None, will try to get from thread-local context.
+        """
+        super().__init__()
+        self.wandb_logger = wandb_logger
+
+    def on_epoch_end(self, epoch: int, logs: Optional[Dict[Text, Any]] = None) -> None:
+        """Logs training metrics to wandb on every epoch end.
+
+        Args:
+            epoch: The current epoch.
+            logs: The training metrics.
+        """
+        from rasa.utils.wandb_utils import get_current_wandb_logger
+        
+        # Use provided wandb_logger or get from thread-local context
+        wandb_logger = self.wandb_logger or get_current_wandb_logger()
+        
+        if wandb_logger is None or logs is None:
+            return
+
+        # Log all available metrics to wandb
+        try:
+            # Map common metric names to more readable ones
+            metric_mapping = {
+                't_loss': 'train_loss',
+                'i_acc': 'intent_accuracy', 
+                'e_f1': 'entity_f1_score',
+                'r_f1': 'response_f1_score',
+                'val_loss': 'validation_loss',
+                'val_i_acc': 'validation_intent_accuracy',
+                'val_e_f1': 'validation_entity_f1_score',
+                'val_r_f1': 'validation_response_f1_score'
+            }
+            
+            # Prepare metrics for logging
+            wandb_metrics = {}
+            for key, value in logs.items():
+                # Use mapped name if available, otherwise use original key
+                metric_name = metric_mapping.get(key, key)
+                
+                # Only log numeric values
+                if isinstance(value, (int, float)):
+                    wandb_metrics[metric_name] = value
+                elif hasattr(value, 'item'):  # Handle numpy scalars
+                    wandb_metrics[metric_name] = value.item()
+            
+            # Add epoch number
+            wandb_metrics['epoch'] = epoch + 1  # Make it 1-based
+            
+            # Log to wandb
+            wandb_logger.log_metrics(wandb_metrics, step=epoch)
+            
+        except Exception as e:
+            logger.debug(f"Failed to log training metrics to wandb: {e}")
+
+
 class RasaModelCheckpoint(tf.keras.callbacks.Callback):
     """Callback for saving intermediate model checkpoints."""
 

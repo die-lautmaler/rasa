@@ -171,9 +171,13 @@ class WandBHook(GraphNodeHook):
     ) -> Dict:
         """Records the start time for training component timing."""
         import time
+        from rasa.utils.wandb_utils import set_current_wandb_logger
 
         if self._wandb_logger is None:
             return {}
+
+        # Set the current wandb logger in thread-local context
+        set_current_wandb_logger(self._wandb_logger)
 
         # Record component start time for duration tracking
         self._component_start_times[node_name] = time.time()
