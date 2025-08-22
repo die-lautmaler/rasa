@@ -936,6 +936,54 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
         from rasa.utils.wandb_utils import get_current_wandb_logger
         current_wandb_logger = get_current_wandb_logger()
         
+        # Log DIET-specific configuration and metadata to wandb
+        if current_wandb_logger:
+            try:
+                diet_config = {
+                    'diet_classifier/epochs': self.component_config[EPOCHS],
+                    'diet_classifier/batch_sizes': self.component_config[BATCH_SIZES],
+                    'diet_classifier/learning_rate': self.component_config[LEARNING_RATE],
+                    'diet_classifier/transformer_size': self.component_config[TRANSFORMER_SIZE],
+                    'diet_classifier/num_transformer_layers': self.component_config[NUM_TRANSFORMER_LAYERS],
+                    'diet_classifier/num_heads': self.component_config[NUM_HEADS],
+                    'diet_classifier/drop_rate': self.component_config[DROP_RATE],
+                    'diet_classifier/intent_classification': self.component_config[INTENT_CLASSIFICATION],
+                    'diet_classifier/entity_recognition': self.component_config[ENTITY_RECOGNITION],
+                    'diet_classifier/masked_lm': self.component_config[MASKED_LM],
+                    'diet_classifier/bilou_flag': self.component_config[BILOU_FLAG],
+                    'diet_classifier/loss_type': self.component_config[LOSS_TYPE],
+                    'diet_classifier/similarity_type': self.component_config[SIMILARITY_TYPE],
+                    'diet_classifier/embedding_dimension': self.component_config[EMBEDDING_DIMENSION],
+                    'diet_classifier/num_neg': self.component_config[NUM_NEG],
+                }
+                
+                # Add model data statistics
+                if not model_data.is_empty():
+                    diet_config.update({
+                        'dataset/num_training_examples': len(data_generator.data),
+                        'dataset/has_intent_data': self.component_config[INTENT_CLASSIFICATION] and model_data.get(LABEL_KEY) is not None,
+                        'dataset/has_entity_data': self.component_config[ENTITY_RECOGNITION] and self._entity_tag_specs is not None,
+                        'dataset/num_entity_tag_specs': len(self._entity_tag_specs) if self._entity_tag_specs else 0,
+                    })
+                    
+                    # Add entity tag information
+                    if self._entity_tag_specs:
+                        for tag_spec in self._entity_tag_specs:
+                            diet_config[f'dataset/num_{tag_spec.tag_name}_tags'] = tag_spec.num_tags
+                
+                # Log configuration
+                current_wandb_logger.log_config(diet_config)
+                
+                # Log the metrics that will be tracked
+                tracked_metrics = getattr(self.model, 'metrics_to_log', [])
+                if tracked_metrics:
+                    current_wandb_logger.log_config({
+                        'diet_classifier/tracked_metrics': tracked_metrics
+                    })
+                    
+            except Exception as e:
+                logger.debug(f"Failed to log DIET configuration to wandb: {e}")
+        
         callbacks = train_utils.create_common_callbacks(
             self.component_config[EPOCHS],
             self.component_config[TENSORBOARD_LOG_DIR],

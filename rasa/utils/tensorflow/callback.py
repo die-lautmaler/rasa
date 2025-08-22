@@ -56,6 +56,10 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
         """
         super().__init__()
         self.wandb_logger = wandb_logger
+        
+        # Initialize previous validation metrics for comparison
+        if self.wandb_logger:
+            self.wandb_logger._previous_val_metrics = {}
 
     def on_epoch_end(self, epoch: int, logs: Optional[Dict[Text, Any]] = None) -> None:
         """Logs training metrics to wandb on every epoch end.
@@ -76,30 +80,98 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
         try:
             # Map common metric names to more readable ones
             metric_mapping = {
-                't_loss': 'train_loss',
-                'i_acc': 'intent_accuracy', 
-                'e_f1': 'entity_f1_score',
-                'r_f1': 'response_f1_score',
-                'val_loss': 'validation_loss',
-                'val_i_acc': 'validation_intent_accuracy',
-                'val_e_f1': 'validation_entity_f1_score',
-                'val_r_f1': 'validation_response_f1_score'
+                # Loss metrics
+                't_loss': 'train/total_loss',
+                'i_loss': 'train/intent_loss',
+                'e_loss': 'train/entity_loss',
+                'g_loss': 'train/entity_group_loss',
+                'r_loss': 'train/entity_role_loss',
+                'm_loss': 'train/mask_loss',
+                
+                # Accuracy metrics
+                'i_acc': 'train/intent_accuracy', 
+                'm_acc': 'train/mask_accuracy',
+                
+                # F1 metrics
+                'e_f1': 'train/entity_f1_score',
+                'g_f1': 'train/entity_group_f1_score',
+                'r_f1': 'train/entity_role_f1_score',
+                
+                # Validation metrics
+                'val_t_loss': 'validation/total_loss',
+                'val_i_loss': 'validation/intent_loss',
+                'val_e_loss': 'validation/entity_loss',
+                'val_g_loss': 'validation/entity_group_loss',
+                'val_r_loss': 'validation/entity_role_loss',
+                'val_m_loss': 'validation/mask_loss',
+                'val_i_acc': 'validation/intent_accuracy',
+                'val_m_acc': 'validation/mask_accuracy',
+                'val_e_f1': 'validation/entity_f1_score',
+                'val_g_f1': 'validation/entity_group_f1_score',
+                'val_r_f1': 'validation/entity_role_f1_score',
+                
+                # Legacy mappings for backward compatibility
+                'val_loss': 'validation/loss',
+                'loss': 'train/loss'
             }
             
             # Prepare metrics for logging
             wandb_metrics = {}
+            training_metrics = {}
+            validation_metrics = {}
+            
             for key, value in logs.items():
+                # Only log numeric values
+                if not isinstance(value, (int, float)) and not hasattr(value, 'item'):
+                    continue
+                    
+                # Convert to float if it's a numpy scalar
+                numeric_value = value.item() if hasattr(value, 'item') else float(value)
+                
                 # Use mapped name if available, otherwise use original key
                 metric_name = metric_mapping.get(key, key)
+                wandb_metrics[metric_name] = numeric_value
                 
-                # Only log numeric values
-                if isinstance(value, (int, float)):
-                    wandb_metrics[metric_name] = value
-                elif hasattr(value, 'item'):  # Handle numpy scalars
-                    wandb_metrics[metric_name] = value.item()
+                # Organize metrics by type for additional logging
+                if key.startswith('val_'):
+                    validation_metrics[key.replace('val_', '')] = numeric_value
+                else:
+                    training_metrics[key] = numeric_value
             
-            # Add epoch number
-            wandb_metrics['epoch'] = epoch + 1  # Make it 1-based
+            # Add epoch number and additional metadata
+            wandb_metrics['training/epoch'] = epoch + 1  # Make it 1-based
+            wandb_metrics['training/step'] = epoch
+            
+            # Add summary metrics if we have both training and validation
+            if training_metrics and validation_metrics:
+                # Log validation/training ratios for loss metrics
+                for metric in ['i_loss', 'e_loss', 't_loss']:
+                    if metric in training_metrics and metric in validation_metrics:
+                        if training_metrics[metric] > 0:
+                            ratio = validation_metrics[metric] / training_metrics[metric]
+                            wandb_metrics[f'ratios/val_train_{metric}_ratio'] = ratio
+                
+                # Count number of metrics improving
+                if hasattr(wandb_logger, '_previous_val_metrics'):
+                    improving_count = 0
+                    total_val_metrics = 0
+                    for metric, current_val in validation_metrics.items():
+                        if metric in wandb_logger._previous_val_metrics:
+                            total_val_metrics += 1
+                            # For loss metrics, improvement means decrease
+                            # For accuracy/f1 metrics, improvement means increase
+                            if 'loss' in metric:
+                                if current_val < wandb_logger._previous_val_metrics[metric]:
+                                    improving_count += 1
+                            else:  # accuracy or f1 metrics
+                                if current_val > wandb_logger._previous_val_metrics[metric]:
+                                    improving_count += 1
+                    
+                    if total_val_metrics > 0:
+                        wandb_metrics['meta/metrics_improving_ratio'] = improving_count / total_val_metrics
+                
+                # Store current validation metrics for next comparison
+                wandb_logger._previous_val_metrics = validation_metrics.copy()
             
             # Log to wandb
             wandb_logger.log_metrics(wandb_metrics, step=epoch)
