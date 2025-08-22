@@ -203,6 +203,14 @@ class WandBHook(GraphNodeHook):
             return
 
         component_name = execution_context.graph_schema.nodes[node_name].uses.__name__
+        
+        # Only log metrics for DIETClassifier to avoid step conflicts
+        # Other components increment wandb step counter which causes issues
+        if component_name != "DIETClassifier":
+            # Clean up tracking but don't log anything
+            if node_name in self._component_start_times:
+                del self._component_start_times[node_name]
+            return
 
         # Calculate training duration
         start_time = input_hook_data.get("start_time")
