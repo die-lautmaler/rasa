@@ -56,10 +56,97 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
         """
         super().__init__()
         self.wandb_logger = wandb_logger
+        self.current_epoch = 0
+        self.batches_per_epoch = 0
         
         # Initialize previous validation metrics for comparison
         if self.wandb_logger:
             self.wandb_logger._previous_val_metrics = {}
+
+    def on_batch_end(self, batch: int, logs: Optional[Dict[Text, Any]] = None) -> None:
+        """Logs training metrics to wandb on every batch end.
+
+        Args:
+            batch: The current batch.
+            logs: The training metrics.
+        """
+        from rasa.utils.wandb_utils import get_current_wandb_logger
+        
+        # Use provided wandb_logger or get from thread-local context
+        wandb_logger = self.wandb_logger or get_current_wandb_logger()
+        
+        if wandb_logger is None or logs is None:
+            return
+
+        # Log batch-level metrics to wandb for real-time monitoring
+        try:
+            # Map common metric names to more readable ones
+            metric_mapping = {
+                # Loss metrics
+                't_loss': 'train/total_loss',
+                'i_loss': 'train/intent_loss',
+                'e_loss': 'train/entity_loss',
+                'g_loss': 'train/entity_group_loss',
+                'r_loss': 'train/entity_role_loss',
+                'm_loss': 'train/mask_loss',
+                
+                # Accuracy metrics
+                'i_acc': 'train/intent_accuracy', 
+                'm_acc': 'train/mask_accuracy',
+                
+                # F1 metrics
+                'e_f1': 'train/entity_f1_score',
+                'g_f1': 'train/entity_group_f1_score',
+                'r_f1': 'train/entity_role_f1_score',
+                
+                # Legacy mappings for backward compatibility
+                'loss': 'train/loss'
+            }
+            
+            # Prepare metrics for logging
+            wandb_metrics = {}
+            
+            for key, value in logs.items():
+                # Only log numeric values
+                if not isinstance(value, (int, float)) and not hasattr(value, 'item'):
+                    continue
+                    
+                # Convert to float if it's a numpy scalar
+                numeric_value = value.item() if hasattr(value, 'item') else float(value)
+                
+                # Use mapped name if available, otherwise use original key
+                metric_name = metric_mapping.get(key, key)
+                wandb_metrics[metric_name] = numeric_value
+            
+            # Add batch metadata
+            wandb_metrics['training/batch'] = batch
+            
+            # Calculate global step across epochs
+            if self.batches_per_epoch > 0:
+                global_step = self.current_epoch * self.batches_per_epoch + batch + 1
+                wandb_metrics['training/global_step'] = global_step
+                wandb_metrics['training/epoch'] = self.current_epoch + 1
+                step_for_logging = global_step
+            else:
+                step_for_logging = batch
+            
+            # Log to wandb with global step
+            wandb_logger.log_metrics(wandb_metrics, step=step_for_logging)
+            
+        except Exception as e:
+            logger.debug(f"Failed to log batch metrics to wandb: {e}")
+
+    def on_epoch_begin(self, epoch: int, logs: Optional[Dict[Text, Any]] = None) -> None:
+        """Track epoch start for step calculation.
+
+        Args:
+            epoch: The current epoch.
+            logs: The training metrics.
+        """
+        self.current_epoch = epoch
+        # Get batches per epoch from the training params if available
+        if hasattr(self.params, 'steps'):
+            self.batches_per_epoch = self.params['steps']
 
     def on_epoch_end(self, epoch: int, logs: Optional[Dict[Text, Any]] = None) -> None:
         """Logs training metrics to wandb on every epoch end.
@@ -138,9 +225,16 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
                 else:
                     training_metrics[key] = numeric_value
             
-            # Add epoch number and additional metadata
+            # Add epoch number and step metadata
             wandb_metrics['training/epoch'] = epoch + 1  # Make it 1-based
-            wandb_metrics['training/step'] = epoch
+            
+            # Calculate global step for epoch-level metrics - use end of epoch
+            if self.batches_per_epoch > 0:
+                global_step = (epoch + 1) * self.batches_per_epoch
+                wandb_metrics['training/global_step_epoch'] = global_step
+                step_for_logging = global_step
+            else:
+                step_for_logging = epoch
             
             # Add summary metrics if we have both training and validation
             if training_metrics and validation_metrics:
@@ -173,8 +267,8 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
                 # Store current validation metrics for next comparison
                 wandb_logger._previous_val_metrics = validation_metrics.copy()
             
-            # Log to wandb
-            wandb_logger.log_metrics(wandb_metrics, step=epoch)
+            # Log to wandb with proper step
+            wandb_logger.log_metrics(wandb_metrics, step=step_for_logging)
             
         except Exception as e:
             logger.debug(f"Failed to log training metrics to wandb: {e}")
