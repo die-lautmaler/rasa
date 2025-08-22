@@ -62,9 +62,6 @@ jobs:
       - name: Set up virtual environment
         run: poetry config virtualenvs.in-project true
 
-      - name: Use experimental solver
-        run: poetry config experimental.new-installer true
-
       - name: Install Dependencies 📦
         run: |
           make install-full
