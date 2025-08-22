@@ -230,6 +230,7 @@ def _train_graph(
     model_to_finetune: Optional[Union[Text, Path]] = None,
     force_full_training: bool = False,
     dry_run: bool = False,
+    wandb_logger: Optional[Any] = None,
     **kwargs: Any,
 ) -> TrainingResult:
     if model_to_finetune:
@@ -291,6 +292,7 @@ def _train_graph(
                 full_model_path,
                 force_retraining=force_full_training,
                 is_finetuning=is_finetuning,
+                wandb_logger=wandb_logger,
             )
             rasa.shared.utils.cli.print_success(
                 f"Your Rasa model is trained and saved at '{full_model_path}'."
@@ -452,13 +454,64 @@ def train_nlu(
         )
         return None
 
-    return _train_graph(
-        file_importer,
-        training_type=TrainingType.NLU,
-        output_path=output,
-        model_to_finetune=model_to_finetune,
-        fixed_model_name=fixed_model_name,
-        finetuning_epoch_fraction=finetuning_epoch_fraction,
-        persist_nlu_training_data=persist_nlu_training_data,
-        **(additional_arguments or {}),
-    ).model
+    # Initialize wandb logging if requested
+    wandb_logger = None
+    use_wandb = additional_arguments and additional_arguments.get("wandb", False)
+    
+    if use_wandb:
+        from rasa.utils.wandb_utils import create_wandb_logger, extract_training_metrics
+        import time
+        
+        # Create run name with timestamp
+        run_name = f"rasa-nlu-{int(time.time())}"
+        if fixed_model_name:
+            run_name = f"{fixed_model_name}-{int(time.time())}"
+            
+        # Extract training metrics
+        model_config = file_importer.get_config()
+        metrics = extract_training_metrics(training_data, model_config)
+        
+        # Initialize wandb logger
+        wandb_logger = create_wandb_logger(
+            config={"model_config": model_config, **metrics},
+            run_name=run_name
+        )
+        
+        if wandb_logger:
+            wandb_logger.log_config({
+                "training_data_path": nlu_data,
+                "config_path": config,
+                "output_path": output,
+                "persist_nlu_training_data": persist_nlu_training_data,
+                "model_to_finetune": model_to_finetune,
+                "finetuning_epoch_fraction": finetuning_epoch_fraction,
+                **metrics
+            })
+
+    try:
+        result = _train_graph(
+            file_importer,
+            training_type=TrainingType.NLU,
+            output_path=output,
+            model_to_finetune=model_to_finetune,
+            fixed_model_name=fixed_model_name,
+            finetuning_epoch_fraction=finetuning_epoch_fraction,
+            persist_nlu_training_data=persist_nlu_training_data,
+            wandb_logger=wandb_logger,
+            **(additional_arguments or {}),
+        )
+        
+        # Log model artifact to wandb if training was successful
+        if wandb_logger and result.model:
+            wandb_logger.log_artifact(
+                artifact_path=result.model,
+                artifact_name=f"nlu-model-{int(time.time()) if 'time' in locals() else ''}",
+                artifact_type="model"
+            )
+            
+        return result.model
+        
+    finally:
+        # Ensure wandb run is finished
+        if wandb_logger:
+            wandb_logger.finish_run()

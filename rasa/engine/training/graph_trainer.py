@@ -13,7 +13,7 @@ from rasa.engine.training.components import (
     FingerprintComponent,
     FingerprintStatus,
 )
-from rasa.engine.training.hooks import TrainingHook, LoggingHook
+from rasa.engine.training.hooks import TrainingHook, LoggingHook, WandBHook
 from rasa.shared.importers.importer import TrainingDataImporter
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ class GraphTrainer:
         output_filename: Path,
         force_retraining: bool = False,
         is_finetuning: bool = False,
+        wandb_logger: Optional[Any] = None,
     ) -> ModelMetadata:
         """Trains and packages a model and returns the prediction graph runner.
 
@@ -89,6 +90,10 @@ class GraphTrainer:
                 pruned_schema=pruned_training_schema,
             ),
         ]
+        
+        # Add WandB hook if wandb_logger is provided
+        if wandb_logger is not None:
+            hooks.append(WandBHook(wandb_logger=wandb_logger))
 
         graph_runner = self._graph_runner_class.create(
             graph_schema=pruned_training_schema,

@@ -231,6 +231,8 @@ def extract_nlu_additional_arguments(args: argparse.Namespace) -> Dict:
 
     if "num_threads" in args:
         arguments["num_threads"] = args.num_threads
+    if "wandb" in args:
+        arguments["wandb"] = args.wandb
 
     return arguments
 

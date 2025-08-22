@@ -72,6 +72,7 @@ def set_train_nlu_arguments(parser: argparse.ArgumentParser) -> None:
     _add_model_name_param(parser)
     add_persist_nlu_data_param(parser)
     add_finetune_params(parser)
+    add_wandb_param(parser)
 
 
 def add_force_param(
@@ -260,4 +261,16 @@ def add_finetune_params(
         type=float,
         help="Fraction of epochs which are currently specified in the model "
         "configuration which should be used when finetuning a model.",
+    )
+
+
+def add_wandb_param(
+    parser: Union[argparse.ArgumentParser, argparse._ActionsContainer]
+) -> None:
+    """Adds parameter for Weights & Biases integration."""
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        help="Enable Weights & Biases logging to track training metrics and artifacts. "
+        "Make sure to set WANDB_API_KEY environment variable or run 'wandb login'.",
     )
