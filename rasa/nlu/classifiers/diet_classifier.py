@@ -932,9 +932,10 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             self.component_config[EVAL_NUM_EXAMPLES],
             self.component_config[RANDOM_SEED],
         )
-        # Get wandb logger from thread-local context
-        from rasa.utils.wandb_utils import get_current_wandb_logger
+        # Get wandb logger and log frequency from thread-local context
+        from rasa.utils.wandb_utils import get_current_wandb_logger, get_current_wandb_log_frequency
         current_wandb_logger = get_current_wandb_logger()
+        wandb_log_frequency = get_current_wandb_log_frequency()
         
         # Log DIET-specific configuration and metadata to wandb
         if current_wandb_logger:
@@ -990,6 +991,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             self.component_config[TENSORBOARD_LOG_LEVEL],
             self.tmp_checkpoint_dir,
             wandb_logger=current_wandb_logger,
+            wandb_log_frequency=wandb_log_frequency,
         )
 
         self.model.fit(

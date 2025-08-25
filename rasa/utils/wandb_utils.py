@@ -213,6 +213,24 @@ def get_current_wandb_logger() -> Optional[Any]:
     return getattr(_local, 'current_wandb_logger', None)
 
 
+def set_current_wandb_log_frequency(log_frequency: int) -> None:
+    """Set the current wandb log frequency in thread-local storage.
+    
+    Args:
+        log_frequency: The log frequency to set for wandb logging.
+    """
+    _local.current_wandb_log_frequency = log_frequency
+
+
+def get_current_wandb_log_frequency() -> int:
+    """Get the current wandb log frequency from thread-local storage.
+    
+    Returns:
+        The current wandb log frequency, or 1000 if not set.
+    """
+    return getattr(_local, 'current_wandb_log_frequency', 1000)
+
+
 def create_wandb_logger(
     config: Optional[Dict[Text, Any]] = None, run_name: Optional[str] = None
 ) -> Optional[WandBLogger]:

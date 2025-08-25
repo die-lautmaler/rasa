@@ -457,10 +457,14 @@ def train_nlu(
     # Initialize wandb logging if requested
     wandb_logger = None
     use_wandb = additional_arguments and additional_arguments.get("wandb", False)
+    wandb_log_frequency = additional_arguments and additional_arguments.get("wandb_log_frequency", 1000)
 
     if use_wandb:
-        from rasa.utils.wandb_utils import create_wandb_logger, extract_training_metrics
+        from rasa.utils.wandb_utils import create_wandb_logger, extract_training_metrics, set_current_wandb_log_frequency
         import time
+        
+        # Set the log frequency in thread-local storage
+        set_current_wandb_log_frequency(wandb_log_frequency)
 
         # Create run name with timestamp
         run_name = f"rasa-nlu-{int(time.time())}"

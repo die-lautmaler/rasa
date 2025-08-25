@@ -347,6 +347,7 @@ def create_common_callbacks(
     tensorboard_log_level: Optional[Text] = None,
     checkpoint_dir: Optional[Path] = None,
     wandb_logger: Optional[Any] = None,
+    wandb_log_frequency: int = 1000,
 ) -> List["Callback"]:
     """Create common callbacks.
 
@@ -363,6 +364,7 @@ def create_common_callbacks(
                                logged. Valid values: 'epoch' and 'batch'.
         checkpoint_dir: optional directory that should be used for model checkpointing
         wandb_logger: optional WandB logger instance for logging training metrics
+        wandb_log_frequency: frequency (in steps) for logging training metrics to wandb
 
     Returns:
         A list of callbacks.
@@ -372,7 +374,7 @@ def create_common_callbacks(
     callbacks = [RasaTrainingLogger(epochs, silent=False)]
 
     if wandb_logger:
-        callbacks.append(RasaWandBLogger(wandb_logger))
+        callbacks.append(RasaWandBLogger(wandb_logger, wandb_log_frequency))
 
     if tensorboard_log_dir:
         callbacks.append(

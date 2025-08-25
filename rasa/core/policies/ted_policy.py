@@ -673,12 +673,17 @@ class TEDPolicy(Policy):
             self.config[EVAL_NUM_EXAMPLES],
             self.config[RANDOM_SEED],
         )
+        # Get wandb log frequency from thread-local context
+        from rasa.utils.wandb_utils import get_current_wandb_log_frequency
+        wandb_log_frequency = get_current_wandb_log_frequency()
+        
         callbacks = rasa.utils.train_utils.create_common_callbacks(
             self.config[EPOCHS],
             self.config[TENSORBOARD_LOG_DIR],
             self.config[TENSORBOARD_LOG_LEVEL],
             self.tmp_checkpoint_dir,
             wandb_logger=None,  # Will be obtained from thread-local context
+            wandb_log_frequency=wandb_log_frequency,
         )
 
         if self.model is None:

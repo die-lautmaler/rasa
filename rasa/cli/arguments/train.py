@@ -274,3 +274,9 @@ def add_wandb_param(
         help="Enable Weights & Biases logging to track training metrics and artifacts. "
         "Make sure to set WANDB_API_KEY environment variable or run 'wandb login'.",
     )
+    parser.add_argument(
+        "--wandb-log-frequency",
+        type=int,
+        default=1000,
+        help="Frequency (in steps) for logging training metrics to wandb. Default is 1000.",
+    )
