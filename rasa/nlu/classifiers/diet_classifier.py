@@ -60,6 +60,15 @@ from rasa.utils.tensorflow.constants import (
     NUM_HEADS,
     BATCH_SIZES,
     BATCH_STRATEGY,
+    EARLY_STOPPING,
+    EARLY_STOPPING_ENABLED,
+    EARLY_STOPPING_MONITOR,
+    EARLY_STOPPING_MIN_DELTA,
+    EARLY_STOPPING_PATIENCE,
+    EARLY_STOPPING_MODE,
+    EARLY_STOPPING_BASELINE,
+    EARLY_STOPPING_RESTORE_BEST_WEIGHTS,
+    EARLY_STOPPING_VERBOSE,
     EPOCHS,
     RANDOM_SEED,
     LEARNING_RATE,
@@ -288,6 +297,18 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             # a few steps, as the compilation of the graph tends to take more time than
             # running it. It is recommended to not adjust the optimization parameter.
             RUN_EAGERLY: False,
+            # ## Early stopping parameters
+            # Early stopping configuration to prevent overfitting
+            EARLY_STOPPING: {
+                EARLY_STOPPING_ENABLED: False,
+                EARLY_STOPPING_MONITOR: "val_loss",
+                EARLY_STOPPING_MIN_DELTA: 0.0,
+                EARLY_STOPPING_PATIENCE: 10,
+                EARLY_STOPPING_MODE: "auto",
+                EARLY_STOPPING_BASELINE: None,
+                EARLY_STOPPING_RESTORE_BEST_WEIGHTS: False,
+                EARLY_STOPPING_VERBOSE: True,
+            },
         }
 
     def __init__(
@@ -985,6 +1006,9 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             except Exception as e:
                 logger.debug(f"Failed to log DIET configuration to wandb: {e}")
         
+        # Get early stopping configuration
+        early_stopping_config = self.component_config.get(EARLY_STOPPING)
+        
         callbacks = train_utils.create_common_callbacks(
             self.component_config[EPOCHS],
             self.component_config[TENSORBOARD_LOG_DIR],
@@ -992,6 +1016,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             self.tmp_checkpoint_dir,
             wandb_logger=current_wandb_logger,
             wandb_log_frequency=wandb_log_frequency,
+            early_stopping_config=early_stopping_config,
         )
 
         self.model.fit(

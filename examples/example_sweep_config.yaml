@@ -1,0 +1,92 @@
+# Example wandb sweep configuration for Rasa hyperparameter optimization
+# Usage: wandb sweep example_sweep_config.yaml
+
+project: rasa-hyperparameter-optimization
+entity: your-wandb-entity  # Optional: replace with your wandb entity
+
+# Optimization method
+method: bayes  # Options: bayes, grid, random
+
+# Metric to optimize
+metric:
+  goal: minimize  # or maximize
+  name: validation/total_loss  # Metric name as logged by Rasa
+
+# Early termination (optional)
+early_terminate:
+  type: hyperband
+  min_iter: 10
+
+# Hyperparameters to sweep over
+parameters:
+  # DIET Classifier parameters
+  diet_epochs:
+    values: [50, 100, 200, 300]
+    
+  diet_learning_rate:
+    min: 0.0001
+    max: 0.01
+    distribution: log_uniform_values
+    
+  diet_batch_size:
+    values: [[32, 128], [64, 256], [128, 512]]
+    
+  diet_transformer_size:
+    values: [64, 128, 256, 512]
+    
+  diet_num_transformer_layers:
+    values: [1, 2, 3, 4]
+    
+  diet_num_heads:
+    values: [2, 4, 8]
+    
+  diet_drop_rate:
+    min: 0.0
+    max: 0.5
+    distribution: uniform
+    
+  diet_embedding_dimension:
+    values: [10, 20, 50, 100]
+    
+  diet_regularization_constant:
+    min: 0.0001
+    max: 0.01
+    distribution: log_uniform_values
+    
+  diet_similarity_type:
+    values: ["auto", "cosine", "inner"]
+    
+  diet_loss_type:
+    values: ["cross_entropy", "margin"]
+    
+  diet_num_neg:
+    values: [10, 20, 50, 100]
+    
+  # Early stopping parameters
+  early_stopping_patience:
+    values: [5, 10, 15, 20]
+    
+  early_stopping_monitor:
+    values: ["val_loss", "val_i_acc", "val_e_f1"]
+    
+  early_stopping_min_delta:
+    min: 0.0001
+    max: 0.01
+    distribution: log_uniform_values
+    
+  # CountVectorsFeaturizer parameters
+  count_vectors_min_ngram:
+    values: [1, 2]
+    
+  count_vectors_max_ngram:
+    values: [2, 3, 4, 5]
+    
+  count_vectors_max_features:
+    values: [1000, 5000, 10000, 50000]
+
+# Run configuration
+name: rasa-diet-optimization
+description: "Optimizing DIET classifier hyperparameters for better performance"
+
+# Optional: Command to run (if using wandb agent directly)
+# program: sweep_runner.py

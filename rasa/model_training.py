@@ -459,6 +459,61 @@ def train_nlu(
     use_wandb = additional_arguments and additional_arguments.get("wandb", False)
     wandb_log_frequency = additional_arguments and additional_arguments.get("wandb_log_frequency", 1000)
 
+    # Check if we should initialize an automatic sweep
+    sweep_script_path = additional_arguments and additional_arguments.get("sweep_script")
+    sweep_config_path = additional_arguments and additional_arguments.get("sweep_config")
+    is_sweep_iteration = additional_arguments and additional_arguments.get("_is_sweep_iteration", False)
+    
+    if sweep_script_path and sweep_config_path and not is_sweep_iteration:
+        # Auto-sweep mode: initialize and run sweep automatically
+        from rasa.utils.wandb_auto_sweep import should_initialize_auto_sweep, run_auto_sweep
+        
+        if should_initialize_auto_sweep(additional_arguments):
+            logger.info("Auto-sweep mode detected: initializing wandb sweep...")
+            
+            # Prepare training arguments for the sweep
+            training_args = {
+                'config': config,
+                'nlu_data': nlu_data,
+                'output': output,
+                'fixed_model_name': fixed_model_name,
+                'persist_nlu_training_data': persist_nlu_training_data,
+                'additional_arguments': additional_arguments,
+                'domain': domain,
+                'model_to_finetune': model_to_finetune,
+                'finetuning_epoch_fraction': finetuning_epoch_fraction,
+            }
+            
+            # This will create the sweep and run the agent - it won't return
+            run_auto_sweep(sweep_config_path, sweep_script_path, training_args)
+            return None  # This won't be reached as run_auto_sweep doesn't return
+        else:
+            logger.warning("Auto-sweep requested but wandb not available")
+    
+    elif sweep_script_path:
+        # Regular sweep script mode (single run with manual sweep)
+        from rasa.utils.sweep_script_utils import get_sweep_script_loader
+        
+        sweep_loader = get_sweep_script_loader()
+        if sweep_loader.load_sweep_script(sweep_script_path):
+            logger.info("Applying sweep script modifications to config")
+            try:
+                # Get current config and apply sweep modifications
+                current_config = file_importer.get_config()
+                modified_config = sweep_loader.modify_config(current_config)
+                
+                # Update the file importer's config
+                if hasattr(file_importer, '_config'):
+                    file_importer._config = modified_config
+                    logger.info("Successfully applied sweep script modifications")
+                else:
+                    logger.warning("Could not update file importer config")
+                    
+            except Exception as e:
+                logger.error(f"Failed to apply sweep script modifications: {e}")
+        else:
+            logger.error(f"Failed to load sweep script: {sweep_script_path}")
+
     if use_wandb:
         from rasa.utils.wandb_utils import create_wandb_logger, extract_training_metrics, set_current_wandb_log_frequency
         import time

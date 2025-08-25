@@ -280,3 +280,15 @@ def add_wandb_param(
         default=1000,
         help="Frequency (in steps) for logging training metrics to wandb. Default is 1000.",
     )
+    parser.add_argument(
+        "--sweep-script",
+        type=str,
+        help="Path to Python script that modifies config parameters for hyperparameter sweeps. "
+        "The script must contain a 'modify_config_for_sweep(config)' function.",
+    )
+    parser.add_argument(
+        "--sweep-config",
+        type=str,
+        help="Path to YAML file containing wandb sweep configuration. When provided with "
+        "--sweep-script, automatically initializes and runs a wandb sweep.",
+    )

@@ -73,6 +73,15 @@ from rasa.utils.tensorflow.constants import (
     EPOCHS,
     RANDOM_SEED,
     LEARNING_RATE,
+    EARLY_STOPPING,
+    EARLY_STOPPING_ENABLED,
+    EARLY_STOPPING_MONITOR,
+    EARLY_STOPPING_MIN_DELTA,
+    EARLY_STOPPING_PATIENCE,
+    EARLY_STOPPING_MODE,
+    EARLY_STOPPING_BASELINE,
+    EARLY_STOPPING_RESTORE_BEST_WEIGHTS,
+    EARLY_STOPPING_VERBOSE,
     RANKING_LENGTH,
     RENORMALIZE_CONFIDENCES,
     LOSS_TYPE,
@@ -343,6 +352,18 @@ class TEDPolicy(Policy):
             # Determines the importance of policies, higher values take precedence
             POLICY_PRIORITY: DEFAULT_POLICY_PRIORITY,
             USE_GPU: True,
+            # ## Early stopping parameters
+            # Early stopping configuration to prevent overfitting
+            EARLY_STOPPING: {
+                EARLY_STOPPING_ENABLED: False,
+                EARLY_STOPPING_MONITOR: "val_loss",
+                EARLY_STOPPING_MIN_DELTA: 0.0,
+                EARLY_STOPPING_PATIENCE: 10,
+                EARLY_STOPPING_MODE: "auto",
+                EARLY_STOPPING_BASELINE: None,
+                EARLY_STOPPING_RESTORE_BEST_WEIGHTS: False,
+                EARLY_STOPPING_VERBOSE: True,
+            },
         }
 
     def __init__(
@@ -677,6 +698,9 @@ class TEDPolicy(Policy):
         from rasa.utils.wandb_utils import get_current_wandb_log_frequency
         wandb_log_frequency = get_current_wandb_log_frequency()
         
+        # Get early stopping configuration
+        early_stopping_config = self.config.get(EARLY_STOPPING)
+        
         callbacks = rasa.utils.train_utils.create_common_callbacks(
             self.config[EPOCHS],
             self.config[TENSORBOARD_LOG_DIR],
@@ -684,6 +708,7 @@ class TEDPolicy(Policy):
             self.tmp_checkpoint_dir,
             wandb_logger=None,  # Will be obtained from thread-local context
             wandb_log_frequency=wandb_log_frequency,
+            early_stopping_config=early_stopping_config,
         )
 
         if self.model is None:

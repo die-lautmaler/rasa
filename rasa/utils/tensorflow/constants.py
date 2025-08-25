@@ -85,6 +85,17 @@ MEAN_POOLING = "mean"
 TENSORBOARD_LOG_DIR = "tensorboard_log_directory"
 TENSORBOARD_LOG_LEVEL = "tensorboard_log_level"
 
+# Early stopping constants
+EARLY_STOPPING = "early_stopping"
+EARLY_STOPPING_ENABLED = "enabled"
+EARLY_STOPPING_MONITOR = "monitor"
+EARLY_STOPPING_MIN_DELTA = "min_delta"
+EARLY_STOPPING_PATIENCE = "patience"
+EARLY_STOPPING_MODE = "mode"
+EARLY_STOPPING_BASELINE = "baseline"
+EARLY_STOPPING_RESTORE_BEST_WEIGHTS = "restore_best_weights"
+EARLY_STOPPING_VERBOSE = "verbose"
+
 SEQUENCE_FEATURES = "sequence_features"
 SENTENCE_FEATURES = "sentence_features"
 

@@ -29,6 +29,7 @@ from rasa.utils.tensorflow.constants import (
     CHECKPOINT_MODEL,
 )
 from rasa.utils.tensorflow.callback import RasaTrainingLogger, RasaModelCheckpoint, RasaWandBLogger
+from rasa.utils.tensorflow.early_stopping import create_early_stopping_callback
 from rasa.utils.tensorflow.data_generator import RasaBatchDataGenerator
 from rasa.utils.tensorflow.model_data import RasaModelData
 from rasa.shared.nlu.constants import SPLIT_ENTITIES_BY_COMMA
@@ -348,6 +349,7 @@ def create_common_callbacks(
     checkpoint_dir: Optional[Path] = None,
     wandb_logger: Optional[Any] = None,
     wandb_log_frequency: int = 1000,
+    early_stopping_config: Optional[Dict[Text, Any]] = None,
 ) -> List["Callback"]:
     """Create common callbacks.
 
@@ -356,6 +358,7 @@ def create_common_callbacks(
     - Optional TensorBoard callback
     - Optional RasaModelCheckpoint callback
     - Optional RasaWandBLogger callback
+    - Optional RasaEarlyStopping callback
 
     Args:
         epochs: the number of epochs to train
@@ -365,6 +368,7 @@ def create_common_callbacks(
         checkpoint_dir: optional directory that should be used for model checkpointing
         wandb_logger: optional WandB logger instance for logging training metrics
         wandb_log_frequency: frequency (in steps) for logging training metrics to wandb
+        early_stopping_config: optional early stopping configuration
 
     Returns:
         A list of callbacks.
@@ -389,6 +393,11 @@ def create_common_callbacks(
 
     if checkpoint_dir:
         callbacks.append(RasaModelCheckpoint(checkpoint_dir))
+
+    # Add early stopping callback if configured
+    early_stopping_callback = create_early_stopping_callback(early_stopping_config)
+    if early_stopping_callback:
+        callbacks.append(early_stopping_callback)
 
     return callbacks
 

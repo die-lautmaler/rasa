@@ -1,0 +1,63 @@
+# Example NLU config.yaml with early stopping configuration
+
+recipe: default.v1
+language: en
+
+pipeline:
+  - name: WhitespaceTokenizer
+  - name: RegexFeaturizer
+  - name: LexicalSyntacticFeaturizer
+  - name: CountVectorsFeaturizer
+  - name: CountVectorsFeaturizer
+    analyzer: char_wb
+    min_ngram: 1
+    max_ngram: 4
+  - name: DIETClassifier
+    epochs: 100
+    # Early stopping configuration - prevents overfitting
+    early_stopping:
+      enabled: true               # Enable early stopping
+      monitor: "val_loss"         # Metric to monitor (val_loss, val_i_acc, val_e_f1, etc.)
+      min_delta: 0.001           # Minimum improvement to count as progress
+      patience: 15               # Stop if no improvement for 15 epochs
+      mode: "auto"               # Auto-detect if metric should increase or decrease
+      restore_best_weights: false # Whether to restore best weights when stopping
+      verbose: true              # Log early stopping messages
+
+# Alternative configuration examples:
+# 
+# Example 1: Monitor validation accuracy with higher patience
+# early_stopping:
+#   enabled: true
+#   monitor: "val_i_acc"      # Monitor intent accuracy
+#   min_delta: 0.005          # Require 0.5% improvement
+#   patience: 20              # Wait 20 epochs
+#   mode: "max"               # Explicitly set to maximize accuracy
+#   restore_best_weights: true # Restore best weights when stopping
+#
+# Example 2: Monitor validation F1 score for entities
+# early_stopping:
+#   enabled: true  
+#   monitor: "val_e_f1"       # Monitor entity F1 score
+#   min_delta: 0.01           # Require 1% improvement
+#   patience: 10              # Wait 10 epochs
+#   mode: "max"               # Maximize F1 score
+#   baseline: 0.8             # Only stop if F1 drops below 0.8
+#
+# Example 3: Disabled early stopping (default)
+# early_stopping:
+#   enabled: false
+
+policies:
+  - name: MemoizationPolicy
+  - name: RulePolicy
+  - name: UnexpecTEDIntentPolicy
+    max_history: 5
+    epochs: 50
+    # Early stopping for TED policy
+    early_stopping:
+      enabled: true
+      monitor: "val_loss"
+      min_delta: 0.0001
+      patience: 8
+      restore_best_weights: true

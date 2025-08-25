@@ -235,6 +235,10 @@ def extract_nlu_additional_arguments(args: argparse.Namespace) -> Dict:
         arguments["wandb"] = args.wandb
     if "wandb_log_frequency" in args:
         arguments["wandb_log_frequency"] = args.wandb_log_frequency
+    if "sweep_script" in args:
+        arguments["sweep_script"] = args.sweep_script
+    if "sweep_config" in args:
+        arguments["sweep_config"] = args.sweep_config
 
     return arguments
 
