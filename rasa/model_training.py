@@ -1,8 +1,11 @@
+import logging
 import time
 from pathlib import Path
 from typing import Text, NamedTuple, Optional, List, Union, Dict, Any
 
 import randomname
+
+logger = logging.getLogger(__name__)
 
 import rasa.engine.validation
 from rasa.engine.caching import LocalTrainingCache
