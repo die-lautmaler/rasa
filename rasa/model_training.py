@@ -444,9 +444,22 @@ def train_nlu(
         return None
 
     # training NLU only hence the training files still have to be selected
-    file_importer = TrainingDataImporter.load_nlu_importer_from_config(
-        config, domain, training_data_paths=[nlu_data], args=additional_arguments
-    )
+    
+    # Check if we need to use sweep-aware file importer
+    sweep_script_path = additional_arguments and additional_arguments.get("sweep_script")
+    
+    if sweep_script_path:
+        # Use sweep-aware file importer for config modifications
+        from rasa.utils.sweep_file_importer import SweepAwareFileImporter
+        file_importer = SweepAwareFileImporter(
+            config_file=config,
+            domain_path=domain,
+            training_data_paths=[nlu_data]
+        )
+    else:
+        file_importer = TrainingDataImporter.load_nlu_importer_from_config(
+            config, domain, training_data_paths=[nlu_data], args=additional_arguments
+        )
 
     training_data = file_importer.get_nlu_data()
     if training_data.contains_no_pure_nlu_data():
@@ -505,12 +518,12 @@ def train_nlu(
                 current_config = file_importer.get_config()
                 modified_config = sweep_loader.modify_config(current_config)
                 
-                # Update the file importer's config
-                if hasattr(file_importer, '_config'):
-                    file_importer._config = modified_config
+                # Update the file importer's config using the update_config method
+                if hasattr(file_importer, 'update_config'):
+                    file_importer.update_config(modified_config)
                     logger.info("Successfully applied sweep script modifications")
                 else:
-                    logger.warning("Could not update file importer config")
+                    logger.warning("File importer does not support config updates - using SweepAwareFileImporter is required for sweep functionality")
                     
             except Exception as e:
                 logger.error(f"Failed to apply sweep script modifications: {e}")
