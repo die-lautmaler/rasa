@@ -349,19 +349,20 @@ def create_data_generators(
                     
                     logger.info(f"Creating validation split for sweep: {validation_examples}/{total_examples} examples ({validation_split*100:.1f}%)")
                     
+                    # Cache the split parameters before creating the actual split
+                    try:
+                        split_id = validation_cache.cache_validation_split_indices(
+                            validation_examples, validation_split, random_seed, total_examples
+                        )
+                        if split_id:
+                            logger.info(f"Cached validation split parameters ({split_id}) for sweep consistency")
+                    except Exception as cache_error:
+                        logger.warning(f"Failed to cache validation split parameters: {cache_error}")
+                    
+                    # Create the actual split
                     train_model_data, evaluation_model_data = model_data.split(
                         validation_examples, random_seed
                     )
-                    
-                    # Cache the split for future runs in this sweep
-                    try:
-                        split_id = validation_cache.cache_validation_split(
-                            train_model_data, evaluation_model_data, validation_split, random_seed
-                        )
-                        if split_id:
-                            logger.info(f"Cached validation split ({split_id}) for sweep consistency")
-                    except Exception as cache_error:
-                        logger.warning(f"Failed to cache validation split, continuing without cache: {cache_error}")
             else:
                 # Not in sweep mode - create split normally without caching
                 total_examples = model_data.number_of_examples()

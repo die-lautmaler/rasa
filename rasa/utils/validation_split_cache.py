@@ -1,4 +1,18 @@
-"""Utilities for caching validation splits across sweep runs."""
+"""Utilities for caching validation splits across sweep runs.
+
+This module provides a caching mechanism to ensure that validation splits remain
+consistent across all runs in a Weights & Biases sweep. Instead of caching the
+actual model data objects (which contain unpickleable lambda functions), it
+caches only the split configuration parameters and recreates the split from
+the original data using the same random seed.
+
+Key features:
+- Detects sweep mode automatically via wandb environment variables
+- Caches split parameters (validation_examples, split_fraction, random_seed)
+- Recreates identical splits across sweep runs for consistency
+- Graceful fallback to normal behavior if caching fails
+- Automatic cache validation and cleanup
+"""
 
 import logging
 import pickle
@@ -102,6 +116,51 @@ class ValidationSplitCache:
             logger.error(f"Error checking cached split: {e}")
             return False
     
+    def cache_validation_split_indices(
+        self, 
+        validation_examples: int,
+        validation_split: float, 
+        random_seed: Optional[int],
+        total_examples: int
+    ) -> str:
+        """Cache validation split configuration instead of the actual data.
+        
+        Args:
+            validation_examples: Number of validation examples.
+            validation_split: The validation split fraction.
+            random_seed: The random seed used for splitting.
+            total_examples: Total number of examples in original dataset.
+            
+        Returns:
+            The cache ID (hash) for this split.
+        """
+        if validation_split <= 0:
+            return ""
+            
+        try:
+            data_hash = self._create_consistent_hash(total_examples, validation_split, random_seed)
+            cache_path = self._get_cache_path(data_hash)
+            
+            # Cache only the split configuration, not the actual data objects
+            cache_data = {
+                'validation_examples': validation_examples,
+                'validation_split': validation_split,
+                'random_seed': random_seed,
+                'total_examples': total_examples,
+                'cache_version': 'v3_indices_only'
+            }
+            
+            with open(cache_path, 'wb') as f:
+                pickle.dump(cache_data, f)
+                
+            logger.info(f"Cached validation split indices: {data_hash} ({validation_examples}/{total_examples} validation examples)")
+            self._current_split_id = data_hash
+            return data_hash
+            
+        except Exception as e:
+            logger.error(f"Failed to cache validation split indices: {e}")
+            return ""
+    
     def cache_validation_split(
         self, 
         model_data: RasaModelData, 
@@ -109,7 +168,9 @@ class ValidationSplitCache:
         validation_split: float, 
         random_seed: Optional[int]
     ) -> str:
-        """Cache a validation split.
+        """Cache a validation split by storing split parameters only.
+        
+        This method extracts the split parameters and delegates to cache_validation_split_indices.
         
         Args:
             model_data: The training model data after split.
@@ -120,34 +181,13 @@ class ValidationSplitCache:
         Returns:
             The cache ID (hash) for this split.
         """
-        if validation_split <= 0:
-            return ""
-            
         try:
-            # First create a combined model data for hashing to ensure consistency
-            total_examples = model_data.number_of_examples() + validation_data.number_of_examples()
+            validation_examples = validation_data.number_of_examples()
+            total_examples = model_data.number_of_examples() + validation_examples
             
-            # Create a dummy model data object for consistent hashing
-            # We use the training data as the base since it should be stable
-            data_hash = self._create_consistent_hash(total_examples, validation_split, random_seed)
-            cache_path = self._get_cache_path(data_hash)
-            
-            # Cache both the training and validation splits
-            cache_data = {
-                'training_data': model_data,
-                'validation_data': validation_data,
-                'validation_split': validation_split,
-                'random_seed': random_seed,
-                'total_examples': total_examples
-            }
-            
-            with open(cache_path, 'wb') as f:
-                pickle.dump(cache_data, f)
-                
-            logger.info(f"Cached validation split: {data_hash}")
-            self._current_split_id = data_hash
-            return data_hash
-            
+            return self.cache_validation_split_indices(
+                validation_examples, validation_split, random_seed, total_examples
+            )
         except Exception as e:
             logger.error(f"Failed to cache validation split: {e}")
             return ""
@@ -161,34 +201,32 @@ class ValidationSplitCache:
             str(total_examples),
             str(validation_split),
             str(random_seed or 0),
-            "v2"  # Version marker for cache format
+            "v3"  # Version marker for cache format
         ]
         
         hash_string = "_".join(hash_components)
         return hashlib.md5(hash_string.encode()).hexdigest()
     
-    def load_cached_split(
+    def load_cached_split_config(
         self, 
-        original_model_data: RasaModelData,
+        total_examples: int,
         validation_split: float, 
         random_seed: Optional[int]
-    ) -> Optional[Tuple[RasaModelData, RasaModelData]]:
-        """Load a cached validation split.
+    ) -> Optional[dict]:
+        """Load cached validation split configuration.
         
         Args:
-            original_model_data: The original model data (before splitting).
+            total_examples: Total number of examples in the dataset.
             validation_split: The validation split fraction.
             random_seed: The random seed used for splitting.
             
         Returns:
-            Tuple of (training_data, validation_data) if found, None otherwise.
+            Dictionary with split configuration if found, None otherwise.
         """
         if validation_split <= 0:
             return None
             
         try:
-            # Use consistent hash approach for loading
-            total_examples = original_model_data.number_of_examples()
             data_hash = self._create_consistent_hash(total_examples, validation_split, random_seed)
             cache_path = self._get_cache_path(data_hash)
             
@@ -201,10 +239,9 @@ class ValidationSplitCache:
             
             # Verify the cached data is still valid
             cached_total = cache_data.get('total_examples', 0)
-            current_total = original_model_data.number_of_examples()
             
-            if cached_total != current_total:
-                logger.warning(f"Cached validation split invalid due to data size change: {cached_total} != {current_total}")
+            if cached_total != total_examples:
+                logger.warning(f"Cached validation split invalid due to data size change: {cached_total} != {total_examples}")
                 # Remove invalid cache file
                 try:
                     cache_path.unlink()
@@ -212,14 +249,67 @@ class ValidationSplitCache:
                     pass
                 return None
             
-            logger.info(f"Loaded cached validation split: {data_hash}")
-            self._current_split_id = data_hash
-            
-            return cache_data['training_data'], cache_data['validation_data']
+            # Check cache version to ensure compatibility
+            cache_version = cache_data.get('cache_version', 'v1_legacy')
+            if cache_version == 'v3_indices_only':
+                logger.info(f"Loaded cached validation split config: {data_hash} ({cache_data.get('validation_examples', 0)} validation examples)")
+                self._current_split_id = data_hash
+                return cache_data
+            else:
+                logger.warning(f"Incompatible cache version {cache_version}, ignoring cached split")
+                return None
             
         except Exception as e:
-            logger.error(f"Failed to load cached validation split: {e}")
-            # If there's any error, fall back to no cached split
+            logger.error(f"Failed to load cached validation split config: {e}")
+            return None
+    
+    def load_cached_split(
+        self, 
+        original_model_data: RasaModelData,
+        validation_split: float, 
+        random_seed: Optional[int]
+    ) -> Optional[Tuple[RasaModelData, RasaModelData]]:
+        """Load a cached validation split by recreating it from the original data.
+        
+        Args:
+            original_model_data: The original model data (before splitting).
+            validation_split: The validation split fraction.
+            random_seed: The random seed used for splitting.
+            
+        Returns:
+            Tuple of (training_data, validation_data) if cached config found, None otherwise.
+        """
+        if validation_split <= 0:
+            return None
+            
+        try:
+            total_examples = original_model_data.number_of_examples()
+            cached_config = self.load_cached_split_config(total_examples, validation_split, random_seed)
+            
+            if not cached_config:
+                return None
+                
+            # Recreate the split using the cached parameters
+            validation_examples = cached_config['validation_examples']
+            cached_random_seed = cached_config['random_seed']
+            
+            # Verify the split parameters match what we expect
+            if (cached_config['validation_split'] != validation_split or 
+                cached_random_seed != random_seed):
+                logger.warning("Cached split parameters don't match current request, ignoring cache")
+                return None
+            
+            logger.info(f"Recreating validation split from cached config: {validation_examples}/{total_examples} examples")
+            
+            # Recreate the split using the same parameters
+            train_model_data, validation_model_data = original_model_data.split(
+                validation_examples, cached_random_seed
+            )
+            
+            return train_model_data, validation_model_data
+            
+        except Exception as e:
+            logger.error(f"Failed to recreate validation split from cache: {e}")
             return None
     
     def clear_cache(self) -> None:
