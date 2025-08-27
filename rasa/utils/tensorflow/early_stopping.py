@@ -118,6 +118,8 @@ class RasaEarlyStopping(tf.keras.callbacks.Callback):
             
         # Check if this is the best value so far
         if self.monitor_op(current, self.best):
+            # Store old best value for logging before updating
+            old_best = self.best
             self.best = current
             self.best_epoch = epoch
             self.wait = 0
@@ -128,7 +130,7 @@ class RasaEarlyStopping(tf.keras.callbacks.Callback):
                 
             if self.verbose:
                 logger.info(
-                    f"EarlyStopping: {self.monitor} improved from {self.best:.6f} "
+                    f"EarlyStopping: {self.monitor} improved from {old_best:.6f} "
                     f"to {current:.6f} at epoch {epoch + 1}"
                 )
         else:
