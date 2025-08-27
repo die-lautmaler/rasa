@@ -153,9 +153,18 @@ def validate_yaml_schema(
         raise YamlSyntaxException(underlying_yaml_exception=e)
 
     # Use importlib.metadata for resource file access
-    schema_file = str(importlib_metadata.files(package_name) / schema_path)
-    schema_utils_file = str(importlib_metadata.files(PACKAGE_NAME) / RESPONSES_SCHEMA_FILE)
-    schema_extensions = str(importlib_metadata.files(PACKAGE_NAME) / SCHEMA_EXTENSIONS_FILE)
+    try:
+        # Try new importlib.resources API first
+        from importlib import resources
+        schema_file = str(resources.files(package_name) / schema_path)
+        schema_utils_file = str(resources.files(PACKAGE_NAME) / RESPONSES_SCHEMA_FILE)
+        schema_extensions = str(resources.files(PACKAGE_NAME) / SCHEMA_EXTENSIONS_FILE)
+    except (ImportError, AttributeError):
+        # Fallback to pkg_resources for older Python versions
+        import pkg_resources
+        schema_file = pkg_resources.resource_filename(package_name, schema_path)
+        schema_utils_file = pkg_resources.resource_filename(PACKAGE_NAME, RESPONSES_SCHEMA_FILE)
+        schema_extensions = pkg_resources.resource_filename(PACKAGE_NAME, SCHEMA_EXTENSIONS_FILE)
 
     # Load schema content using our YAML loader as `pykwalify` uses a global instance
     # which can fail when used concurrently

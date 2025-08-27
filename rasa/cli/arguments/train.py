@@ -73,6 +73,7 @@ def set_train_nlu_arguments(parser: argparse.ArgumentParser) -> None:
     add_persist_nlu_data_param(parser)
     add_finetune_params(parser)
     add_wandb_param(parser)
+    add_verbose_training_param(parser)
 
 
 def add_force_param(
@@ -291,4 +292,16 @@ def add_wandb_param(
         type=str,
         help="Path to YAML file containing wandb sweep configuration. When provided with "
         "--sweep-script, automatically initializes and runs a wandb sweep.",
+    )
+
+
+def add_verbose_training_param(
+    parser: Union[argparse.ArgumentParser, argparse._ActionsContainer]
+) -> None:
+    """Add parameter to enable verbose training output."""
+    parser.add_argument(
+        "--verbose-training",
+        action="store_true",
+        help="Show detailed training progress including progress bars and INFO logs. "
+        "By default, training output is minimal showing only the final result.",
     )

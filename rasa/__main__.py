@@ -8,6 +8,7 @@ import warnings
 # Suppress common deprecation warnings before importing anything else
 os.environ.setdefault("SQLALCHEMY_SILENCE_UBER_WARNING", "1")
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")  # Suppress TensorFlow warnings
+os.environ.setdefault("RASA_TELEMETRY_ENABLED", "false")  # Suppress telemetry output
 
 # Set Python warnings environment variable for comprehensive warning suppression
 current_warnings = os.environ.get("PYTHONWARNINGS", "")
@@ -35,6 +36,11 @@ warnings.filterwarnings("ignore", message=".*jax.xla_computation is deprecated.*
 # Additional suppression for TensorFlow JAX warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="tensorflow")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="tensorflow.lite.python.util")
+# Suppress warnings from external packages
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="apscheduler")
+warnings.filterwarnings("ignore", category=FutureWarning, module="rasa.engine.recipes.recipe")
+# Suppress training configuration warnings
+warnings.filterwarnings("ignore", message=".*constrain_similarities.*", category=UserWarning)
 
 from rasa_sdk import __version__ as rasa_sdk_version
 from rasa.constants import MINIMUM_COMPATIBLE_VERSION
@@ -132,6 +138,15 @@ def main() -> None:
     cmdline_arguments = arg_parser.parse_args()
 
     log_level = getattr(cmdline_arguments, "loglevel", None)
+    
+    # For training commands, default to WARNING level for cleaner output unless verbose-training is enabled
+    if (hasattr(cmdline_arguments, 'func') and 
+        hasattr(cmdline_arguments.func, '__name__') and 
+        ('train' in cmdline_arguments.func.__name__) and 
+        log_level is None and
+        not getattr(cmdline_arguments, 'verbose_training', False)):
+        log_level = logging.WARNING
+    
     logging_config_file = getattr(cmdline_arguments, "logging_config_file", None)
     configure_logging_and_warnings(
         log_level, logging_config_file, warn_only_once=True, filter_repeated_logs=True

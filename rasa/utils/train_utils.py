@@ -400,7 +400,11 @@ def create_common_callbacks(
     """
     import tensorflow as tf
 
-    callbacks = [RasaTrainingLogger(epochs, silent=False)]
+    # Make progress bar silent if log level is WARNING or higher (quieter output)
+    current_log_level = logging.getLogger().getEffectiveLevel()
+    silent_progress = current_log_level >= logging.WARNING
+    
+    callbacks = [RasaTrainingLogger(epochs, silent=silent_progress)]
 
     if wandb_logger:
         callbacks.append(RasaWandBLogger(wandb_logger, wandb_log_frequency))

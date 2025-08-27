@@ -1,3 +1,5 @@
+version: "3.1"
+assistant_id: test-clean-output
 language: en
 
 pipeline:
@@ -15,4 +17,3 @@ pipeline:
     monitor: "val_t_loss"
     patience: 5
     min_delta: 0.001
-assistant_id: 20250827-101702-randomized-catch
