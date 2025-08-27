@@ -51,7 +51,12 @@ from rasa.shared.exceptions import ConnectionException, RasaException
 from rasa.shared.nlu.constants import INTENT_NAME_KEY
 from rasa.utils.endpoints import EndpointConfig
 import sqlalchemy as sa
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+try:
+    from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta
+    _USE_LEGACY_DECLARATIVE = False
+except ImportError:
+    from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+    _USE_LEGACY_DECLARATIVE = True
 
 if TYPE_CHECKING:
     import boto3.resources.factory.dynamodb.Table
@@ -941,10 +946,13 @@ def _create_sequence(table_name: Text) -> "Sequence":
 
     Returns: A `Sequence` object
     """
-    from sqlalchemy.ext.declarative import declarative_base
-
     sequence_name = f"{table_name}_seq"
-    Base = declarative_base()
+    if _USE_LEGACY_DECLARATIVE:
+        from sqlalchemy.ext.declarative import declarative_base
+        Base = declarative_base()
+    else:
+        class Base(DeclarativeBase):
+            pass
     return sa.Sequence(sequence_name, metadata=Base.metadata, optional=True)
 
 
@@ -1041,7 +1049,11 @@ def validate_port(port: Any) -> Optional[int]:
 class SQLTrackerStore(TrackerStore, SerializedTrackerAsText):
     """Store which can save and retrieve trackers from an SQL database."""
 
-    Base: DeclarativeMeta = declarative_base()
+    if _USE_LEGACY_DECLARATIVE:
+        Base: DeclarativeMeta = declarative_base()
+    else:
+        class Base(DeclarativeBase):
+            pass
 
     class SQLEvent(Base):
         """Represents an event in the SQL Tracker Store."""

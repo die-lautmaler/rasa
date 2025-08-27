@@ -21,7 +21,12 @@ import rasa.shared.utils.common
 from rasa.constants import MINIMUM_COMPATIBLE_VERSION
 import sqlalchemy as sa
 import sqlalchemy.orm
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+try:
+    from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta
+    _USE_LEGACY_DECLARATIVE = False
+except ImportError:
+    from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+    _USE_LEGACY_DECLARATIVE = True
 
 from rasa.engine.storage.storage import ModelStorage
 
@@ -149,7 +154,11 @@ class Cacheable(Protocol):
 class LocalTrainingCache(TrainingCache):
     """Caches training results on local disk (see parent class for full docstring)."""
 
-    Base: DeclarativeMeta = declarative_base()
+    if _USE_LEGACY_DECLARATIVE:
+        Base: DeclarativeMeta = declarative_base()
+    else:
+        class Base(DeclarativeBase):
+            pass
 
     class CacheEntry(Base):
         """Stores metadata about a single cache entry."""

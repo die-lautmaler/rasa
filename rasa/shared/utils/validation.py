@@ -131,7 +131,10 @@ def validate_yaml_schema(
     from pykwalify.core import Core
     from pykwalify.errors import SchemaError
     from ruamel.yaml import YAMLError
-    import pkg_resources
+    try:
+        from importlib import metadata as importlib_metadata
+    except ImportError:
+        import importlib_metadata  # Python < 3.8 fallback
     import logging
 
     log = logging.getLogger("pykwalify")
@@ -149,13 +152,10 @@ def validate_yaml_schema(
     except (YAMLError, DuplicateKeyError) as e:
         raise YamlSyntaxException(underlying_yaml_exception=e)
 
-    schema_file = pkg_resources.resource_filename(package_name, schema_path)
-    schema_utils_file = pkg_resources.resource_filename(
-        PACKAGE_NAME, RESPONSES_SCHEMA_FILE
-    )
-    schema_extensions = pkg_resources.resource_filename(
-        PACKAGE_NAME, SCHEMA_EXTENSIONS_FILE
-    )
+    # Use importlib.metadata for resource file access
+    schema_file = str(importlib_metadata.files(package_name) / schema_path)
+    schema_utils_file = str(importlib_metadata.files(PACKAGE_NAME) / RESPONSES_SCHEMA_FILE)
+    schema_extensions = str(importlib_metadata.files(PACKAGE_NAME) / SCHEMA_EXTENSIONS_FILE)
 
     # Load schema content using our YAML loader as `pykwalify` uses a global instance
     # which can fail when used concurrently

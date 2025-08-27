@@ -3,6 +3,38 @@ import logging
 import os
 import platform
 import sys
+import warnings
+
+# Suppress common deprecation warnings before importing anything else
+os.environ.setdefault("SQLALCHEMY_SILENCE_UBER_WARNING", "1")
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")  # Suppress TensorFlow warnings
+
+# Set Python warnings environment variable for comprehensive warning suppression
+current_warnings = os.environ.get("PYTHONWARNINGS", "")
+additional_warnings = [
+    "ignore::DeprecationWarning:pkg_resources",
+    "ignore::DeprecationWarning:tensorflow.lite.python.util",
+    "ignore:.*pkg_resources is deprecated.*:DeprecationWarning",
+    "ignore:.*declare_namespace.*:DeprecationWarning", 
+    "ignore:.*jax.xla_computation is deprecated.*:DeprecationWarning"
+]
+
+if current_warnings:
+    new_warnings = current_warnings + "," + ",".join(additional_warnings)
+else:
+    new_warnings = ",".join(additional_warnings)
+    
+os.environ["PYTHONWARNINGS"] = new_warnings
+
+# Apply warning filters directly as well
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
+warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+warnings.filterwarnings("ignore", message=".*declare_namespace.*")
+warnings.filterwarnings("ignore", message=".*jax.xla_computation is deprecated.*")
+
+# Additional suppression for TensorFlow JAX warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="tensorflow")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="tensorflow.lite.python.util")
 
 from rasa_sdk import __version__ as rasa_sdk_version
 from rasa.constants import MINIMUM_COMPATIBLE_VERSION

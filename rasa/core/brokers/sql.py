@@ -5,7 +5,12 @@ from asyncio import AbstractEventLoop
 from typing import Any, Dict, Optional, Text, Generator
 
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+try:
+    from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta
+    _USE_LEGACY_DECLARATIVE = False
+except ImportError:
+    from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+    _USE_LEGACY_DECLARATIVE = True
 from sqlalchemy import Column, Integer, String
 from sqlalchemy import Text as SqlAlchemyText  # to avoid name clash with typing.Text
 
@@ -22,7 +27,11 @@ class SQLEventBroker(EventBroker):
 
     """
 
-    Base: DeclarativeMeta = declarative_base()
+    if _USE_LEGACY_DECLARATIVE:
+        Base: DeclarativeMeta = declarative_base()
+    else:
+        class Base(DeclarativeBase):
+            pass
 
     class SQLBrokerEvent(Base):
         """ORM which represents a row in the `events` table."""
