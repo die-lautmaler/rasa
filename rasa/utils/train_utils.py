@@ -331,37 +331,54 @@ def create_data_generators(
     
     # Use validation_split if provided, otherwise fall back to eval_num_examples
     if validation_split > 0.0:
-        # Check if we're in sweep mode and can use cached validation split
-        if validation_cache.is_sweep_mode():
-            cached_split = validation_cache.load_cached_split(model_data, validation_split, random_seed)
-            
-            if cached_split:
-                # Use cached validation split
-                train_model_data, evaluation_model_data = cached_split
-                split_id = validation_cache.get_current_split_id()
-                logger.info(f"Using cached validation split ({split_id}) for sweep consistency")
+        try:
+            # Check if we're in sweep mode and can use cached validation split
+            if validation_cache.is_sweep_mode():
+                logger.debug("Sweep mode detected, attempting to load cached validation split")
+                cached_split = validation_cache.load_cached_split(model_data, validation_split, random_seed)
+                
+                if cached_split:
+                    # Use cached validation split
+                    train_model_data, evaluation_model_data = cached_split
+                    split_id = validation_cache.get_current_split_id()
+                    logger.info(f"Using cached validation split ({split_id}) for sweep consistency")
+                else:
+                    # Create new split and cache it for future sweep runs
+                    total_examples = model_data.number_of_examples()
+                    validation_examples = max(1, int(total_examples * validation_split))
+                    
+                    logger.info(f"Creating validation split for sweep: {validation_examples}/{total_examples} examples ({validation_split*100:.1f}%)")
+                    
+                    train_model_data, evaluation_model_data = model_data.split(
+                        validation_examples, random_seed
+                    )
+                    
+                    # Cache the split for future runs in this sweep
+                    try:
+                        split_id = validation_cache.cache_validation_split(
+                            train_model_data, evaluation_model_data, validation_split, random_seed
+                        )
+                        if split_id:
+                            logger.info(f"Cached validation split ({split_id}) for sweep consistency")
+                    except Exception as cache_error:
+                        logger.warning(f"Failed to cache validation split, continuing without cache: {cache_error}")
             else:
-                # Create new split and cache it for future sweep runs
+                # Not in sweep mode - create split normally without caching
                 total_examples = model_data.number_of_examples()
                 validation_examples = max(1, int(total_examples * validation_split))
                 
-                logger.info(f"Creating validation split for sweep: {validation_examples}/{total_examples} examples ({validation_split*100:.1f}%)")
+                logger.info(f"Creating validation split: {validation_examples}/{total_examples} examples ({validation_split*100:.1f}%)")
                 
                 train_model_data, evaluation_model_data = model_data.split(
                     validation_examples, random_seed
                 )
-                
-                # Cache the split for future runs in this sweep
-                split_id = validation_cache.cache_validation_split(
-                    train_model_data, evaluation_model_data, validation_split, random_seed
-                )
-                logger.info(f"Cached validation split ({split_id}) for sweep consistency")
-        else:
-            # Not in sweep mode - create split normally without caching
+        except Exception as e:
+            # Fallback to normal split creation if anything goes wrong with caching
+            logger.warning(f"Validation split caching failed, falling back to normal split creation: {e}")
             total_examples = model_data.number_of_examples()
             validation_examples = max(1, int(total_examples * validation_split))
             
-            logger.info(f"Creating validation split: {validation_examples}/{total_examples} examples ({validation_split*100:.1f}%)")
+            logger.info(f"Creating validation split (fallback): {validation_examples}/{total_examples} examples ({validation_split*100:.1f}%)")
             
             train_model_data, evaluation_model_data = model_data.split(
                 validation_examples, random_seed

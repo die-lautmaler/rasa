@@ -42,13 +42,28 @@ class ValidationSplitCache:
             Hash string representing the configuration.
         """
         # Create hash based on data fingerprint, validation split, and random seed
-        hash_components = [
-            str(model_data.number_of_examples()),
-            str(validation_split),
-            str(random_seed or 0),
-            # Use first few examples as fingerprint to detect data changes
-            str(hash(tuple(model_data.get_signature().items())))[:10]
-        ]
+        try:
+            # Use a safer way to create data fingerprint
+            signature = model_data.get_signature()
+            signature_str = str(sorted(signature.keys())) if signature else "empty_signature"
+            
+            hash_components = [
+                str(model_data.number_of_examples()),
+                str(validation_split),
+                str(random_seed or 0),
+                signature_str,
+                # Add additional fingerprint based on data structure
+                str(len(str(model_data)))[:10]  # Simple size-based fingerprint
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to create detailed hash, using basic fingerprint: {e}")
+            # Fallback to basic hash if signature fails
+            hash_components = [
+                str(model_data.number_of_examples()),
+                str(validation_split), 
+                str(random_seed or 0),
+                "basic_fingerprint"
+            ]
         
         hash_string = "_".join(hash_components)
         return hashlib.md5(hash_string.encode()).hexdigest()
@@ -78,9 +93,14 @@ class ValidationSplitCache:
         if validation_split <= 0:
             return False
             
-        data_hash = self._get_model_data_hash(model_data, validation_split, random_seed)
-        cache_path = self._get_cache_path(data_hash)
-        return cache_path.exists()
+        try:
+            total_examples = model_data.number_of_examples()
+            data_hash = self._create_consistent_hash(total_examples, validation_split, random_seed)
+            cache_path = self._get_cache_path(data_hash)
+            return cache_path.exists()
+        except Exception as e:
+            logger.error(f"Error checking cached split: {e}")
+            return False
     
     def cache_validation_split(
         self, 
@@ -103,17 +123,22 @@ class ValidationSplitCache:
         if validation_split <= 0:
             return ""
             
-        data_hash = self._get_model_data_hash(model_data, validation_split, random_seed)
-        cache_path = self._get_cache_path(data_hash)
-        
         try:
+            # First create a combined model data for hashing to ensure consistency
+            total_examples = model_data.number_of_examples() + validation_data.number_of_examples()
+            
+            # Create a dummy model data object for consistent hashing
+            # We use the training data as the base since it should be stable
+            data_hash = self._create_consistent_hash(total_examples, validation_split, random_seed)
+            cache_path = self._get_cache_path(data_hash)
+            
             # Cache both the training and validation splits
             cache_data = {
                 'training_data': model_data,
                 'validation_data': validation_data,
                 'validation_split': validation_split,
                 'random_seed': random_seed,
-                'total_examples': model_data.number_of_examples() + validation_data.number_of_examples()
+                'total_examples': total_examples
             }
             
             with open(cache_path, 'wb') as f:
@@ -126,6 +151,21 @@ class ValidationSplitCache:
         except Exception as e:
             logger.error(f"Failed to cache validation split: {e}")
             return ""
+    
+    def _create_consistent_hash(self, total_examples: int, validation_split: float, random_seed: Optional[int]) -> str:
+        """Create a consistent hash for validation split based on basic parameters.
+        
+        This avoids issues with complex model data hashing.
+        """
+        hash_components = [
+            str(total_examples),
+            str(validation_split),
+            str(random_seed or 0),
+            "v2"  # Version marker for cache format
+        ]
+        
+        hash_string = "_".join(hash_components)
+        return hashlib.md5(hash_string.encode()).hexdigest()
     
     def load_cached_split(
         self, 
@@ -146,13 +186,16 @@ class ValidationSplitCache:
         if validation_split <= 0:
             return None
             
-        data_hash = self._get_model_data_hash(original_model_data, validation_split, random_seed)
-        cache_path = self._get_cache_path(data_hash)
-        
-        if not cache_path.exists():
-            return None
-            
         try:
+            # Use consistent hash approach for loading
+            total_examples = original_model_data.number_of_examples()
+            data_hash = self._create_consistent_hash(total_examples, validation_split, random_seed)
+            cache_path = self._get_cache_path(data_hash)
+            
+            if not cache_path.exists():
+                logger.debug(f"No cached validation split found for hash: {data_hash}")
+                return None
+                
             with open(cache_path, 'rb') as f:
                 cache_data = pickle.load(f)
             
@@ -162,6 +205,11 @@ class ValidationSplitCache:
             
             if cached_total != current_total:
                 logger.warning(f"Cached validation split invalid due to data size change: {cached_total} != {current_total}")
+                # Remove invalid cache file
+                try:
+                    cache_path.unlink()
+                except Exception:
+                    pass
                 return None
             
             logger.info(f"Loaded cached validation split: {data_hash}")
@@ -171,6 +219,7 @@ class ValidationSplitCache:
             
         except Exception as e:
             logger.error(f"Failed to load cached validation split: {e}")
+            # If there's any error, fall back to no cached split
             return None
     
     def clear_cache(self) -> None:
