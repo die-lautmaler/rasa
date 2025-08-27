@@ -64,6 +64,11 @@ class AutoSweepManager:
             if not sweep_config:
                 return
 
+            # Prepare validation split cache for new sweep
+            from rasa.utils.validation_split_cache import get_validation_split_cache
+            validation_cache = get_validation_split_cache()
+            validation_cache.prepare_for_new_sweep()
+            
             # Create the sweep
             logger.info("Creating wandb sweep...")
             project_name = sweep_config.get('project', 'rasa-auto-sweep')

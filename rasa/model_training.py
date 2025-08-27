@@ -509,6 +509,11 @@ def train_nlu(
     elif sweep_script_path:
         # Regular sweep script mode (single run with manual sweep)
         from rasa.utils.sweep_script_utils import get_sweep_script_loader
+        from rasa.utils.validation_split_cache import get_validation_split_cache
+        
+        # Enable sweep mode for validation split caching when using sweep scripts
+        validation_cache = get_validation_split_cache()
+        validation_cache.enable_sweep_mode()
         
         sweep_loader = get_sweep_script_loader()
         if sweep_loader.load_sweep_script(sweep_script_path):

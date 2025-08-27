@@ -65,6 +65,11 @@ class WandBSweepManager:
             return None
             
         try:
+            # Prepare validation split cache for new sweep
+            from rasa.utils.validation_split_cache import get_validation_split_cache
+            validation_cache = get_validation_split_cache()
+            validation_cache.prepare_for_new_sweep()
+            
             # Add project to sweep config if not present
             if 'project' not in self.sweep_config:
                 self.sweep_config['project'] = project_name

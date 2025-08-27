@@ -117,6 +117,14 @@ class RasaSweepRunner:
                 logger.info("Using default sweep configuration")
                 sweep_config = self.create_sweep_config()
         
+        # Prepare validation split cache for new sweep
+        try:
+            from rasa.utils.validation_split_cache import get_validation_split_cache
+            validation_cache = get_validation_split_cache()
+            validation_cache.prepare_for_new_sweep()
+        except ImportError:
+            logger.warning("Could not import validation split cache - validation splits may not be consistent across sweep runs")
+        
         # Create the sweep
         sweep_id = wandb.sweep(sweep=sweep_config, project=self.project_name)
         logger.info(f"Created sweep with ID: {sweep_id}")
