@@ -47,6 +47,7 @@ CONNECTION_DENSITY = "connection_density"
 
 EVAL_NUM_EPOCHS = "evaluate_every_number_of_epochs"
 EVAL_NUM_EXAMPLES = "evaluate_on_number_of_examples"
+VALIDATION_SPLIT = "validation_split"
 
 INTENT_CLASSIFICATION = "intent_classification"
 ENTITY_RECOGNITION = "entity_recognition"

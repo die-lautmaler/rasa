@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 import numpy as np
 from typing import Optional, Text, Dict, Any, Union, List, Tuple, TYPE_CHECKING
 
@@ -31,6 +32,8 @@ from rasa.utils.tensorflow.constants import (
 from rasa.utils.tensorflow.callback import RasaTrainingLogger, RasaModelCheckpoint, RasaWandBLogger
 from rasa.utils.tensorflow.early_stopping import create_early_stopping_callback
 from rasa.utils.tensorflow.data_generator import RasaBatchDataGenerator
+
+logger = logging.getLogger(__name__)
 from rasa.utils.tensorflow.model_data import RasaModelData
 from rasa.shared.nlu.constants import SPLIT_ENTITIES_BY_COMMA
 from rasa.shared.exceptions import InvalidConfigException
@@ -303,6 +306,7 @@ def create_data_generators(
     eval_num_examples: int = 0,
     random_seed: Optional[int] = None,
     shuffle: bool = True,
+    validation_split: float = 0.0,
 ) -> Tuple[RasaBatchDataGenerator, Optional[RasaBatchDataGenerator]]:
     """Create data generators for train and optional validation data.
 
@@ -314,12 +318,33 @@ def create_data_generators(
         eval_num_examples: Number of examples to use for validation data.
         random_seed: The random seed.
         shuffle: Whether to shuffle data inside the data generator.
+        validation_split: Fraction of training data to hold out for validation (0.0-1.0).
+                         If > 0, overrides eval_num_examples with stratified split.
 
     Returns:
         The training data generator and optional validation data generator.
     """
     validation_data_generator = None
-    if eval_num_examples > 0:
+    
+    # Use validation_split if provided, otherwise fall back to eval_num_examples
+    if validation_split > 0.0:
+        # Calculate number of validation examples from percentage
+        total_examples = model_data.number_of_examples()
+        validation_examples = max(1, int(total_examples * validation_split))
+        
+        logger.info(f"Creating validation split: {validation_examples}/{total_examples} examples ({validation_split*100:.1f}%)")
+        
+        model_data, evaluation_model_data = model_data.split(
+            validation_examples, random_seed
+        )
+        validation_data_generator = RasaBatchDataGenerator(
+            evaluation_model_data,
+            batch_size=batch_sizes,
+            epochs=epochs,
+            batch_strategy=batch_strategy,
+            shuffle=shuffle,
+        )
+    elif eval_num_examples > 0:
         model_data, evaluation_model_data = model_data.split(
             eval_num_examples, random_seed
         )

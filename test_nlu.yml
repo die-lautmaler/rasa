@@ -1,0 +1,54 @@
+version: "3.1"
+
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - good morning
+    - good evening
+    - hey there
+    - hi there
+    - hello there
+    - good day
+    - howdy
+
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye  
+    - see you around
+    - see you later
+    - farewell
+    - bye bye
+    - catch you later
+    - take care
+    - until next time
+    - see ya
+
+- intent: affirm
+  examples: |
+    - yes
+    - indeed
+    - of course
+    - that sounds good
+    - correct
+    - absolutely
+    - sure
+    - definitely
+    - yep
+    - right
+
+- intent: deny
+  examples: |
+    - no
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - nope
+    - not really
+    - negative
+    - absolutely not
+    - I disagree

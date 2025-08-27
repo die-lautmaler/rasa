@@ -84,6 +84,7 @@ from rasa.utils.tensorflow.constants import (
     INTENT_CLASSIFICATION,
     EVAL_NUM_EXAMPLES,
     EVAL_NUM_EPOCHS,
+    VALIDATION_SPLIT,
     UNIDIRECTIONAL_ENCODER,
     DROP_RATE,
     DROP_RATE_ATTENTION,
@@ -251,6 +252,10 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             # Large values may hurt performance, e.g. model accuracy.
             # Set to 0 for no validation.
             EVAL_NUM_EXAMPLES: 0,
+            # Fraction of training data to hold out for validation (0.0-1.0).
+            # If > 0, creates a stratified validation split for evaluation.
+            # Used for validation at end of each epoch. Set to 0.0 to disable.
+            VALIDATION_SPLIT: 0.1,
             # ## Model config
             # If 'True' intent classification is trained and intent predicted.
             INTENT_CLASSIFICATION: True,
@@ -952,6 +957,7 @@ class DIETClassifier(GraphComponent, IntentClassifier, EntityExtractorMixin):
             self.component_config[BATCH_STRATEGY],
             self.component_config[EVAL_NUM_EXAMPLES],
             self.component_config[RANDOM_SEED],
+            validation_split=self.component_config[VALIDATION_SPLIT],
         )
         # Get wandb logger and log frequency from thread-local context
         from rasa.utils.wandb_utils import get_current_wandb_logger, get_current_wandb_log_frequency
