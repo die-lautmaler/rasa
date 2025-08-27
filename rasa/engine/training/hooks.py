@@ -233,9 +233,6 @@ class WandBHook(GraphNodeHook):
                     }
                     self._wandb_logger.log_metrics(prefixed_metrics)
 
-            # Log general component completion
-            self._wandb_logger.log_metrics({f"component_{component_name}_completed": 1})
-
         except Exception as e:
             logger.debug(f"Failed to log wandb metrics for {component_name}: {e}")
 

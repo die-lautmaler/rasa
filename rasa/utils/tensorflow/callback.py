@@ -237,8 +237,13 @@ class RasaWandBLogger(tf.keras.callbacks.Callback):
                 # Store current validation metrics for next comparison
                 wandb_logger._previous_val_metrics = validation_metrics.copy()
                 
-                # Log validation metrics with epoch-based step
-                wandb_logger.log_metrics(wandb_metrics, step=epoch + 1)
+                # Log validation metrics without step to avoid conflicts with training steps
+                # WandB will automatically handle the timeline, and we can use epoch info in metric names
+                # Add epoch information to the metrics for better tracking
+                epoch_metrics = wandb_metrics.copy()
+                epoch_metrics['validation/epoch'] = epoch + 1
+                
+                wandb_logger.log_metrics(epoch_metrics, step=None)
             
         except Exception as e:
             logger.debug(f"Failed to log validation metrics to wandb: {e}")
